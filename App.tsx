@@ -15,6 +15,7 @@ import LiveSessionPage from './pages/LiveSessionPage';
 import SharedProfilePage from './pages/SharedProfilePage';
 import SiteBuilderPage from './pages/SiteBuilderPage';
 import SchedulerPage from './pages/SchedulerPage';
+import AutomationsPage from './pages/AutomationsPage';
 
 const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(true);
@@ -54,6 +55,7 @@ const App: React.FC = () => {
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/battle" element={<BattleModePage />} />
                     <Route path="/sonic" element={<SonicLabPage />} />
+                    <Route path="/automations" element={<AutomationsPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Layout>

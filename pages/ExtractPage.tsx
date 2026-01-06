@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { analyzeBrandDNA, findLeadsWithMaps, runCloserAgent, generateAssetImage } from '../services/geminiService';
 import rlmService from '../services/rlmService';
+import n8nService from '../services/n8nService';
 import { BrandDNA, LeadProfile, GlobalSettings } from '../types';
 import DNAProfileCard from '../components/DNAProfileCard';
 import DNAHelix from '../components/DNAHelix';
@@ -89,7 +90,20 @@ const ExtractPage: React.FC = () => {
                 const { latitude, longitude } = position.coords;
                 try {
                     setLoadingMsg(`Locking on coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}...`);
-                    const results = await findLeadsWithMaps(niche, latitude, longitude);
+                    
+                    // Try n8n workflow first (silent automation), fallback to standard mode
+                    let results: LeadProfile[] = [];
+                    if (n8nService.isAvailable()) {
+                        setLoadingMsg('Running automated lead discovery workflow...');
+                        results = await n8nService.runLeadGeneration(niche, latitude, longitude);
+                    }
+                    
+                    // Fallback to standard mode if workflow unavailable
+                    if (results.length === 0) {
+                        setLoadingMsg(`Locking on coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}...`);
+                        results = await findLeadsWithMaps(niche, latitude, longitude);
+                    }
+                    
                     setLeads(results);
                 } catch (e) {
                     console.error("Lead Hunter Error:", e);
@@ -116,10 +130,18 @@ const ExtractPage: React.FC = () => {
              const sender = dnaResult || undefined;
              let portfolio;
              
-             if (rlmActive && settings?.rlm) {
-                 portfolio = await rlmService.runExtendedCloserAgent(lead, sender, settings.rlm);
-             } else {
-                 portfolio = await runCloserAgent(lead, sender);
+             // Try n8n workflow first (silent automation), fallback to standard mode
+             if (n8nService.isAvailable()) {
+                 portfolio = await n8nService.runCloserAgent(lead, sender);
+             }
+             
+             // Fallback if n8n unavailable
+             if (!portfolio) {
+                 if (rlmActive && settings?.rlm) {
+                     portfolio = await rlmService.runExtendedCloserAgent(lead, sender, settings.rlm);
+                 } else {
+                     portfolio = await runCloserAgent(lead, sender);
+                 }
              }
              
              // Optionally generate the visual for the sample post

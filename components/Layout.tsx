@@ -28,6 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, toggleDarkMode }) =
     { path: '/scheduler', label: 'Scheduler', icon: '📅' },
     { path: '/builder', label: 'Site Builder', icon: '🏗️' },
     { path: '/agent-forge', label: 'Agent Forge', icon: '🛠️' },
+    { path: '/automations', label: 'Automations', icon: '⚡', tier: 'hunter', tooltip: 'Advanced: View & customize workflows (Hunter tier)' },
     { path: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 
