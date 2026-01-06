@@ -1,0 +1,7 @@
+{
+  "name": "Core DNA",
+  "description": "AI-powered brand analysis and marketing campaign generator extracting your brand's essence to create unlimited assets.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
