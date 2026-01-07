@@ -189,19 +189,12 @@ const SiteBuilderPage: React.FC = () => {
                 statusMessage: 'Sending to Rocket.new...',
             }));
 
-            // Deploy to Rocket.new
+            // Deploy to Rocket.new (automatically pulls Sonic Lab data from BrandDNA)
             const rocketKey = localStorage.getItem('rocket_new_api_key') || '';
-            const sonicConfig = {
-                enabled: localStorage.getItem('website_disable_sonic_agent') !== 'true',
-                voiceEnabled: localStorage.getItem('website_disable_voice_mode') !== 'true',
-                ttsProvider: settings?.activeVoice || 'elevenlabs',
-                voiceType: selectedDna!.sonicIdentity?.voiceType || 'professional',
-            };
 
             const result = await rocketNewService.deploySite(
                 selectedDna!,
                 rocketKey,
-                sonicConfig,
                 (message, progress) => {
                     setDeployment(prev => ({
                         ...prev,

@@ -43,11 +43,11 @@ class RocketNewService {
 
     /**
      * Deploy site to Rocket.new
+     * Automatically extracts Sonic Agent config from BrandDNA.sonicIdentity
      */
     async deploySite(
         dna: BrandDNA,
         apiKey: string,
-        sonicConfig: any,
         onProgress?: (message: string, progress: number) => void
     ): Promise<RocketNewDeploymentResult> {
         const startTime = Date.now();
@@ -59,8 +59,8 @@ class RocketNewService {
 
             onProgress?.('Building deployment payload...', 10);
 
-            // Build the Rocket.new payload
-            const payload = this.buildPayload(dna, sonicConfig);
+            // Build the Rocket.new payload (automatically uses dna.sonicIdentity)
+            const payload = this.buildPayload(dna);
 
             onProgress?.('Sending to Rocket.new...', 20);
 
@@ -115,9 +115,10 @@ class RocketNewService {
 
     /**
      * Build Rocket.new deployment payload
+     * Automatically pulls Sonic Agent info from dna.sonicIdentity
      */
-    private buildPayload(dna: BrandDNA, sonicConfig: any): RocketNewPayload {
-        const prompt = this.generateDeploymentPrompt(dna, sonicConfig);
+    private buildPayload(dna: BrandDNA): RocketNewPayload {
+        const prompt = this.generateDeploymentPrompt(dna);
 
         return {
             prompt,
@@ -125,10 +126,10 @@ class RocketNewService {
             data: {
                 brandDNA: dna,
                 sonicAgent: {
-                    enabled: sonicConfig.enabled,
-                    voiceEnabled: sonicConfig.voiceEnabled,
-                    ttsProvider: sonicConfig.ttsProvider,
-                    voiceType: sonicConfig.voiceType,
+                    enabled: !!dna.sonicIdentity,
+                    voiceEnabled: !!dna.sonicIdentity,
+                    ttsProvider: 'elevenlabs',
+                    voiceType: dna.sonicIdentity?.voiceType || 'Professional',
                     tone: dna.toneOfVoice?.description || 'Professional',
                     primaryColor: dna.colors[0]?.hex || '#000',
                     secondaryColor: dna.colors[1]?.hex || '#333',
@@ -144,9 +145,16 @@ class RocketNewService {
 
     /**
      * Generate the deployment prompt for Rocket.new
+     * Automatically includes Sonic Lab voice/tone data
      */
-    private generateDeploymentPrompt(dna: BrandDNA, sonicConfig: any): string {
-        const blogNote = sonicConfig.includeBlog ? '\n- Add a blog page with latest posts' : '';
+    private generateDeploymentPrompt(dna: BrandDNA): string {
+        const sonicInfo = dna.sonicIdentity
+            ? `\nVOICE ARCHITECTURE (from Sonic Lab):
+- Voice Type: ${dna.sonicIdentity.voiceType}
+- Music Genre: ${dna.sonicIdentity.musicGenre}
+- Sound Keywords: ${dna.sonicIdentity.soundKeywords?.join(', ') || 'None'}
+- Audio Logo: ${dna.sonicIdentity.audioLogoDescription}`
+            : '\nVOICE ARCHITECTURE: Not configured in Sonic Lab';
 
         return `Generate a professional Next.js website for "${dna.name}" using Tailwind CSS with the following specifications:
 
@@ -163,6 +171,8 @@ VISUAL DESIGN:
 - Font Family: ${dna.fonts[0]?.family || 'Inter'}
 - Visual Style: ${dna.visualStyle?.description || 'Modern and professional'}
 
+${sonicInfo}
+
 PAGE STRUCTURE:
 1. Home Page - Hero section with mission statement, features highlighting top 3 strengths, and CTA
 2. About Page - Brand story narrative, core values, team introduction
@@ -171,12 +181,13 @@ PAGE STRUCTURE:
 5. Contact Page - Contact form, Calendly embed, contact information${blogNote}
 
 SONIC AGENT (AI Chat Widget):
-- Enabled: ${sonicConfig.enabled}
-- Voice: ${sonicConfig.voiceEnabled ? 'Enabled (audio + text)' : 'Text-only'}
-- Voice Type: ${sonicConfig.voiceType || 'Professional'}
+- Enabled: ${!!dna.sonicIdentity}
+- Voice: ${dna.sonicIdentity ? 'Enabled (audio + text from Sonic Lab)' : 'Text-only'}
+- Voice Type: ${dna.sonicIdentity?.voiceType || 'Professional'}
+- Tone: ${dna.toneOfVoice?.description || 'Professional'}
 - Widget Style: Floating button (bottom-right), branded with primary color
 - Context: Full access to brand information for intelligent responses
-- Styling: Match brand colors and fonts
+- Styling: Match brand colors (${dna.colors[0]?.hex || '#000'}) and fonts (${dna.fonts[0]?.family || 'Inter'})
 
 REQUIRED FEATURES:
 - Fully responsive design (mobile-first)
@@ -188,13 +199,14 @@ REQUIRED FEATURES:
 - Footer with company info and social links
 - Embedded Sonic Agent chat widget on all pages
 
-SONIC AGENT WIDGET:
+SONIC AGENT WIDGET (from Sonic Lab):
 - Floating bubble in bottom-right corner
 - Color: ${dna.colors[0]?.hex || '#000'}
+- Voice Type: ${dna.sonicIdentity?.voiceType || 'Professional'}
 - Click to expand chat panel
-- Display brand name and greeting
-- Provide helpful responses based on brand context
-- Optional: Voice input/output if enabled
+- Display brand name ("${dna.name}") and greeting matching tone
+- Provide helpful responses based on brand context and values
+- Optional: Voice input/output if enabled (${dna.sonicIdentity ? 'Configured in Sonic Lab' : 'Not configured'})
 
 Return a fully functional, production-ready website.`;
     }
