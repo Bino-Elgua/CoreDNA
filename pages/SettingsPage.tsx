@@ -206,7 +206,7 @@ const PROVIDER_META: Record<string, { title: string, icon: string, fields: strin
 
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'llm' | 'image' | 'voice' | 'workflow' | 'agency' | 'rlm' | 'inference'>('llm');
+    const [activeTab, setActiveTab] = useState<'llm' | 'image' | 'voice' | 'workflow' | 'agency' | 'rlm' | 'inference' | 'website'>('llm');
     const [settings, setSettings] = useState<GlobalSettings>(INITIAL_SETTINGS);
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -397,6 +397,7 @@ const SettingsPage: React.FC = () => {
                     <TabButton id="voice" label="Voice / TTS" icon={<span>🔊</span>} />
                     <TabButton id="workflow" label="Automations" icon={<span>⚡</span>} />
                     <TabButton id="inference" label="Inference Engine" icon={<span>⚙️</span>} />
+                    <TabButton id="website" label="Website Options" icon={<span>🌐</span>} />
                     <TabButton id="agency" label="Agency Branding" icon={<span>🏢</span>} />
                     <TabButton id="rlm" label="RLM Mode" icon={<span>♾️</span>} />
                 </div>
@@ -541,6 +542,180 @@ const SettingsPage: React.FC = () => {
                                             onToggle={() => updateProvider('workflows', key, { enabled: !settings.workflows[key].enabled })}
                                         />
                                     ))}
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {activeTab === 'website' && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                                <div className="p-6 bg-gradient-to-r from-blue-900 to-cyan-900 rounded-2xl text-white mb-8">
+                                    <div>
+                                        <h2 className="text-2xl font-bold font-display flex items-center gap-2 mb-2">
+                                            Website Builder Options
+                                            <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded uppercase font-black tracking-widest">Pro+</span>
+                                        </h2>
+                                        <p className="text-gray-200 max-w-2xl">
+                                            Configure Firebase deployment, Sonic Agent embedding, and website generation features. All settings required for one-click site deployment.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {/* Firebase Configuration */}
+                                    <div className="md:col-span-2 p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <h3 className="font-bold text-lg">Firebase Hosting</h3>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Configure Firebase Hosting credentials for site deployment</p>
+                                            </div>
+                                            <span className="text-2xl">🔥</span>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-500 uppercase mb-2">Firebase Project ID</label>
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="your-firebase-project"
+                                                    defaultValue={localStorage.getItem('firebase_project_id') || ''}
+                                                    onChange={(e) => {
+                                                        localStorage.setItem('firebase_project_id', e.target.value);
+                                                        setHasChanges(true);
+                                                    }}
+                                                    className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                />
+                                                <p className="text-xs text-gray-400 mt-2">Found in Firebase Console → Project Settings</p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-500 uppercase mb-2">Firebase API Key</label>
+                                                <input 
+                                                    type="password" 
+                                                    placeholder="●●●●●●●●●●●●"
+                                                    defaultValue={localStorage.getItem('firebase_api_key') || ''}
+                                                    onChange={(e) => {
+                                                        localStorage.setItem('firebase_api_key', e.target.value);
+                                                        setHasChanges(true);
+                                                    }}
+                                                    className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                />
+                                                <p className="text-xs text-gray-400 mt-2">Keep this secret. Generated in Firebase Console</p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-500 uppercase mb-2">Firebase Storage Bucket</label>
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="your-project.appspot.com"
+                                                    defaultValue={localStorage.getItem('firebase_storage_bucket') || ''}
+                                                    onChange={(e) => {
+                                                        localStorage.setItem('firebase_storage_bucket', e.target.value);
+                                                        setHasChanges(true);
+                                                    }}
+                                                    className="w-full p-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                />
+                                                <p className="text-xs text-gray-400 mt-2">Format: projectname.appspot.com</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Sonic Agent Configuration */}
+                                    <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <h3 className="font-bold text-lg">Sonic Agent</h3>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">24/7 branded AI chat widget</p>
+                                            </div>
+                                            <span className="text-2xl">🎤</span>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <label className="flex items-center gap-3 cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    defaultChecked={!localStorage.getItem('website_disable_sonic_agent') || localStorage.getItem('website_disable_sonic_agent') === 'false'}
+                                                    onChange={(e) => {
+                                                        localStorage.setItem('website_disable_sonic_agent', (!e.target.checked).toString());
+                                                        setHasChanges(true);
+                                                    }}
+                                                    className="w-4 h-4 cursor-pointer"
+                                                />
+                                                <span className="text-sm font-medium">Enable Sonic Agent on deployed sites</span>
+                                            </label>
+                                            <label className="flex items-center gap-3 cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    defaultChecked={!localStorage.getItem('website_disable_voice_mode') || localStorage.getItem('website_disable_voice_mode') === 'false'}
+                                                    onChange={(e) => {
+                                                        localStorage.setItem('website_disable_voice_mode', (!e.target.checked).toString());
+                                                        setHasChanges(true);
+                                                    }}
+                                                    className="w-4 h-4 cursor-pointer"
+                                                />
+                                                <span className="text-sm font-medium">Enable voice mode (text + voice chat)</span>
+                                            </label>
+                                            <p className="text-xs text-gray-400 mt-3 p-2 bg-gray-50 dark:bg-gray-900 rounded">
+                                                Sonic Agent uses BrandDNA tone, colors, and fonts. Voice model is configured in Voice/TTS settings.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Blog Section */}
+                                    <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <h3 className="font-bold text-lg">Blog Section</h3>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Hunter tier only</p>
+                                            </div>
+                                            <span className="text-2xl">📝</span>
+                                        </div>
+                                        <label className="flex items-center gap-3 cursor-pointer opacity-50 pointer-events-none">
+                                            <input 
+                                                type="checkbox" 
+                                                disabled
+                                                className="w-4 h-4 cursor-not-allowed"
+                                            />
+                                            <span className="text-sm font-medium">Add blog page to generated sites</span>
+                                        </label>
+                                        <p className="text-xs text-gray-400 mt-3">Upgrade to Hunter tier to add automated blog section powered by Campaign assets.</p>
+                                    </div>
+
+                                    {/* SEO Settings */}
+                                    <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <h3 className="font-bold text-lg">SEO & Analytics</h3>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Auto-configured on site generation</p>
+                                            </div>
+                                            <span className="text-2xl">🔍</span>
+                                        </div>
+                                        <div className="space-y-3 text-xs text-gray-600 dark:text-gray-400">
+                                            <label className="flex items-center gap-2">
+                                                <span className="text-green-500">✓</span> Dynamic meta titles & descriptions
+                                            </label>
+                                            <label className="flex items-center gap-2">
+                                                <span className="text-green-500">✓</span> Open Graph tags (social previews)
+                                            </label>
+                                            <label className="flex items-center gap-2">
+                                                <span className="text-green-500">✓</span> LocalBusiness JSON-LD schema
+                                            </label>
+                                            <label className="flex items-center gap-2">
+                                                <span className="text-green-500">✓</span> Mobile-first responsive design
+                                            </label>
+                                            <label className="flex items-center gap-2">
+                                                <span className="text-green-500">✓</span> Image optimization & lazy loading
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl">
+                                    <h3 className="font-bold text-blue-900 dark:text-blue-300 mb-3">Website Builder Features</h3>
+                                    <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
+                                        <li>✓ Auto-generate 5-page responsive sites (Next.js + Tailwind)</li>
+                                        <li>✓ Pages: Home, About, Services, Portfolio, Contact</li>
+                                        <li>✓ Auto-embed Sonic Agent (AI chat widget + optional voice)</li>
+                                        <li>✓ Pull copy from Campaign assets and SWOT analysis</li>
+                                        <li>✓ One-click deployment to Firebase Hosting</li>
+                                        <li>✓ Live URL + shareable link immediately</li>
+                                        <li>✓ Full BrandDNA styling (colors, fonts, spacing)</li>
+                                    </ul>
                                 </div>
                             </motion.div>
                         )}
