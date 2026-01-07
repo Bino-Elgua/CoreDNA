@@ -6,8 +6,8 @@
 
 import { BrandDNA, CampaignAsset, WebsiteData } from '../types';
 import { universalGenerate } from './geminiService';
-import { rlmService } from './rlmService';
-import { inferenceRouter } from './inferenceRouter';
+import rlmService from './rlmService';
+import inferenceRouter from './inferenceRouter';
 
 export interface GeneratedSite {
     id: string;
