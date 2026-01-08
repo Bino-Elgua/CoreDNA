@@ -306,10 +306,11 @@ class N8nWorkflowService {
     }
 
     /**
-     * Check if n8n is available
+     * Check if n8n is available (perform fresh health check)
      */
-    isAvailable(): boolean {
-        return this.isHealthy;
+    async isAvailable(): Promise<boolean> {
+        const health = await this.checkHealth();
+        return health.status === 'healthy';
     }
 
     /**

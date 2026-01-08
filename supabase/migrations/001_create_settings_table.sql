@@ -17,12 +17,12 @@ ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can access their own settings"
     ON user_settings
     FOR ALL
-    USING (user_id = current_user_id() OR user_id = 'anonymous_user')
-    WITH CHECK (user_id = current_user_id() OR user_id = 'anonymous_user');
+    USING (auth.uid()::text = user_id)
+    WITH CHECK (auth.uid()::text = user_id);
 
--- Create policy for anonymous access (fallback)
-CREATE POLICY "Allow anonymous access"
+-- Allow anonymous users to access their own anonymous profile
+CREATE POLICY "Allow anonymous user access"
     ON user_settings
     FOR ALL
-    USING (true)
-    WITH CHECK (true);
+    USING (user_id = 'anonymous_user' AND auth.uid() IS NULL)
+    WITH CHECK (user_id = 'anonymous_user' AND auth.uid() IS NULL);

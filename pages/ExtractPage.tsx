@@ -92,11 +92,12 @@ const ExtractPage: React.FC = () => {
                     setLoadingMsg(`Locking on coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}...`);
                     
                     // Try n8n workflow first (silent automation), fallback to standard mode
-                    let results: LeadProfile[] = [];
-                    if (n8nService.isAvailable()) {
-                        setLoadingMsg('Running automated lead discovery workflow...');
-                        results = await n8nService.runLeadGeneration(niche, latitude, longitude);
-                    }
+                     let results: LeadProfile[] = [];
+                     const n8nAvailable = await n8nService.isAvailable();
+                     if (n8nAvailable) {
+                         setLoadingMsg('Running automated lead discovery workflow...');
+                         results = await n8nService.runLeadGeneration(niche, latitude, longitude);
+                     }
                     
                     // Fallback to standard mode if workflow unavailable
                     if (results.length === 0) {
@@ -131,7 +132,8 @@ const ExtractPage: React.FC = () => {
              let portfolio;
              
              // Try n8n workflow first (silent automation), fallback to standard mode
-             if (n8nService.isAvailable()) {
+             const n8nAvailable = await n8nService.isAvailable();
+             if (n8nAvailable) {
                  portfolio = await n8nService.runCloserAgent(lead, sender);
              }
              
