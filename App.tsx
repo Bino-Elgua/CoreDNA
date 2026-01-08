@@ -1,24 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from '../contexts/AuthContext';
-import { ToastContainer } from '../components/ToastContainer';
-import { ApiKeyPrompt } from '../components/ApiKeyPrompt';
-import Layout from '../components/Layout';
+import { AuthProvider } from './contexts/AuthContext';
+import { ToastContainer } from './components/ToastContainer';
+import { ApiKeyPrompt } from './components/ApiKeyPrompt';
+import Layout from './components/Layout';
+import { SonicOrb } from './components/SonicOrb';
 
 // Lazy load pages - importing from root pages/ directory
-const ExtractPage = React.lazy(() => import('../pages/ExtractPage'));
-const DashboardPage = React.lazy(() => import('../pages/DashboardPage'));
-const CampaignsPage = React.lazy(() => import('../pages/CampaignsPage'));
-const BrandSimulatorPage = React.lazy(() => import('../pages/BrandSimulatorPage'));
-const AgentForgePage = React.lazy(() => import('../pages/AgentForgePage'));
-const SettingsPage = React.lazy(() => import('../pages/SettingsPage'));
-const BattleModePage = React.lazy(() => import('../pages/BattleModePage'));
-const SonicLabPage = React.lazy(() => import('../pages/SonicLabPage'));
-const LiveSessionPage = React.lazy(() => import('../pages/LiveSessionPage'));
-const SharedProfilePage = React.lazy(() => import('../pages/SharedProfilePage'));
-const SiteBuilderPage = React.lazy(() => import('../pages/SiteBuilderPage'));
-const SchedulerPage = React.lazy(() => import('../pages/SchedulerPage'));
-const AutomationsPage = React.lazy(() => import('../pages/AutomationsPage'));
+const ExtractPage = React.lazy(() => import('./pages/ExtractPage'));
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const CampaignsPage = React.lazy(() => import('./pages/CampaignsPage'));
+const BrandSimulatorPage = React.lazy(() => import('./pages/BrandSimulatorPage'));
+const AgentForgePage = React.lazy(() => import('./pages/AgentForgePage'));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
+const BattleModePage = React.lazy(() => import('./pages/BattleModePage'));
+const SonicLabPage = React.lazy(() => import('./pages/SonicLabPage'));
+const LiveSessionPage = React.lazy(() => import('./pages/LiveSessionPage'));
+const SharedProfilePage = React.lazy(() => import('./pages/SharedProfilePage'));
+const SiteBuilderPage = React.lazy(() => import('./pages/SiteBuilderPage'));
+const SchedulerPage = React.lazy(() => import('./pages/SchedulerPage'));
+const AutomationsPage = React.lazy(() => import('./pages/AutomationsPage'));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -107,6 +108,8 @@ const App: React.FC = () => {
         <AuthProvider>
           <Router>
             <ToastContainer />
+            {/* Sonic Co-Pilot Orb (Hunter+ tiers only) */}
+            <SonicOrb />
             <Routes>
               <Route path="/share/:id" element={
                 <React.Suspense fallback={<LoadingFallback />}>
