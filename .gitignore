@@ -26,9 +26,14 @@ dist-ssr
 # Sensitive files
 .env.local
 .env.production
+.env.*.local
+.env.*.production
 *.key
 *.pem
+*.pfx
+*.p12
 secrets/
+api-keys/
 
 # IDE
 .vscode/
