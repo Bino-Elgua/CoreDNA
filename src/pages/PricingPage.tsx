@@ -82,6 +82,9 @@ export function PricingPage() {
         { text: 'Everything in Hunter, plus:', icon: '✨', highlight: true },
         { text: 'Unlimited team members', icon: '👥', highlight: true },
         { text: 'White-label & custom branding', icon: '🏷️', highlight: true },
+        { text: '🏢 Affiliate Hub — Earn 20% recurring commission', icon: '💰', highlight: true, badge: 'REVENUE SHARE' },
+        { text: 'Branded referral landing pages with compliant visitor intelligence', icon: '🌐' },
+        { text: 'Consent-first tracking (GDPR/CCPA compliant)', icon: '🔒' },
         { text: 'Bulk extraction (100+ at once)', icon: '⚡' },
         { text: 'Dedicated account manager', icon: '🤝' },
         { text: 'Enterprise SSO & audit logs', icon: '🔐' },
@@ -267,6 +270,13 @@ export function PricingPage() {
               <td className="text-center py-4 px-4 bg-blue-50">—</td>
               <td className="text-center py-4 px-4">—</td>
               <td className="text-center py-4 px-4">✓</td>
+            </tr>
+            <tr className="border-b border-gray-200">
+              <td className="py-4 px-4 font-semibold">Affiliate Hub</td>
+              <td className="text-center py-4 px-4">—</td>
+              <td className="text-center py-4 px-4 bg-blue-50">—</td>
+              <td className="text-center py-4 px-4">—</td>
+              <td className="text-center py-4 px-4">✓ (20% commission)</td>
             </tr>
             <tr>
               <td className="py-4 px-4 font-semibold">Support</td>

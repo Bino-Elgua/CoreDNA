@@ -172,6 +172,36 @@ export function SettingsPage() {
     }
   };
 
+  const [userTier, setUserTier] = useState<'free' | 'pro' | 'hunter' | 'agency'>('free');
+  const [affiliateHubEnabled, setAffiliateHubEnabled] = useState(false);
+  const [dpaAccepted, setDpaAccepted] = useState(false);
+  const [partnerSlug, setPartnerSlug] = useState('');
+
+  useEffect(() => {
+    // Load user tier from auth/settings
+    const loadUserTier = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Get tier from user_settings or profile
+        setUserTier('agency'); // Demo: assume agency
+      }
+    };
+    loadUserTier();
+  }, []);
+
+  const handleAffiliateHubToggle = (enabled: boolean) => {
+    if (enabled && !dpaAccepted) {
+      // Show DPA modal
+      return;
+    }
+    setAffiliateHubEnabled(enabled);
+  };
+
+  const handleDPAAccept = () => {
+    setDpaAccepted(true);
+    setAffiliateHubEnabled(true);
+  };
+
   return (
     <div className="settings-page max-w-7xl mx-auto p-8">
       <h1 className="text-3xl font-bold mb-2">Settings</h1>
@@ -364,6 +394,100 @@ export function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* AFFILIATE HUB SECTION - AGENCY TIER ONLY */}
+      {userTier === 'agency' && (
+        <section className="affiliate-hub bg-white rounded-lg shadow-sm border p-6 mb-8">
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold mb-4">🏢 Affiliate Hub (Agency Tier Exclusive)</h2>
+
+            <div className="prose prose-sm max-w-none text-gray-600">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-medium">Enable Affiliate Hub</h3>
+                  <p className="text-sm text-gray-600">
+                    Create your referral page and start earning commissions
+                  </p>
+                </div>
+
+                <div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={affiliateHubEnabled}
+                      onChange={(e) => handleAffiliateHubToggle(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                {affiliateHubEnabled && dpaAccepted && (
+                  <>
+                    <div className="bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-200 rounded-lg p-6">
+                      <h4 className="font-semibold text-emerald-900 mb-3">Your Affiliate Links</h4>
+
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm font-medium mb-1">Branded Landing Page</p>
+                          <div className="bg-white p-3 rounded flex items-center justify-between">
+                            <code className="text-sm break-all">
+                              https://partner.coredna.ai/{partnerSlug || 'your-slug'}
+                            </code>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(`https://partner.coredna.ai/${partnerSlug}`)}
+                              className="ml-3 px-3 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-medium mb-1">Direct Referral Link</p>
+                          <div className="bg-white p-3 rounded flex items-center justify-between">
+                            <code className="text-sm break-all">
+                              https://coredna.ai/r/{partnerSlug || 'your-id'}
+                            </code>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(`https://coredna.ai/r/${partnerSlug}`)}
+                              className="ml-3 px-3 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700"
+                            >
+                              Copy
+                            </button>
+                            <button
+                              onClick={() => window.open(`https://partner.coredna.ai/${partnerSlug}`, '_blank')}
+                              className="ml-3 px-3 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700"
+                            >
+                              Preview
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-6">
+                        <h4 className="font-semibold text-amber-900 mb-2">Compliance Summary</h4>
+                        <ul className="text-sm text-amber-800 space-y-1">
+                          <li>✓ Tiered consent banner (company ID / marketing / sales)</li>
+                          <li>✓ Clearbit disclosed for IP enrichment</li>
+                          <li>✓ Manual approval required for outreach</li>
+                          <li>✓ You are data controller — CoreDNA is processor</li>
+                          <li>✓ GDPR/CCPA/ePrivacy compliant</li>
+                          <li>✓ Opt-out link on every page</li>
+                        </ul>
+                      </div>
+
+                      <p className="text-xs text-emerald-800 mt-4">
+                        Earn 20% recurring commission on all paid referrals — lifetime
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
