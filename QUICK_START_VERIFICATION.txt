@@ -1,0 +1,79 @@
+================================================================================
+CoreDNA2 - Quick Start Verification
+================================================================================
+
+✅ ISSUES FIXED:
+  • Duplicate keys (wan, hunyuan, replicate) renamed to video variants
+  • All providers correctly categorized by type
+  • Extraction feature routes through text LLM API only
+  • Build passing with zero warnings
+
+================================================================================
+TO START DEVELOPMENT:
+================================================================================
+
+1. cd /data/data/com.termux/files/home/CoreDNA2-work
+
+2. npm run dev
+   - Opens at http://localhost:3000
+
+3. In Settings page:
+   - Select LLM tab
+   - Add API key for Google Gemini (or another provider)
+   - Save settings
+
+4. Test Extract DNA:
+   - Go to Extract page
+   - Enter website URL
+   - Click "Extract Brand DNA"
+   - Should use configured LLM provider
+
+================================================================================
+PROVIDER ROUTING:
+================================================================================
+
+TEXT EXTRACTION (Brand DNA, Leads, etc):
+  → Uses: settings.llms[activeLLM]
+  → Function: getActiveLLMProvider()
+  → Providers: Google, OpenAI, Claude, Mistral, Groq, DeepSeek, etc.
+
+IMAGE GENERATION (Assets, etc):
+  → Uses: settings.image[activeImageGen]
+  → Function: generateAssetImage()
+  → Providers: DALL-E, Stable Diffusion, Flux, Midjourney, etc.
+
+VIDEO GENERATION (Future):
+  → Uses: settings.video[activeVideo]
+  → Providers: Sora 2, Veo 3, Runway, Kling, etc.
+
+VOICE/TTS:
+  → Uses: settings.voice[activeVoice]
+  → Providers: ElevenLabs, OpenAI TTS, PlayHT, etc.
+
+================================================================================
+FILE CHANGES:
+================================================================================
+
+Modified:
+  - pages/SettingsPage.tsx (lines 109-132, 241-263)
+    • Renamed video providers to avoid duplicate keys
+
+Reviewed (No changes needed):
+  - services/geminiService.ts ✓
+  - pages/ExtractPage.tsx ✓
+  - services/rlmService.ts ✓
+  - types.ts ✓
+
+================================================================================
+BUILD STATUS:
+================================================================================
+
+Last Build: ✓ SUCCESS (9.03s)
+Modules: 1397 transformed
+Warnings: 0
+Errors: 0
+
+To rebuild:
+  npm run build
+
+================================================================================

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { analyzeBrandDNA, findLeadsWithMaps, runCloserAgent, generateAssetImage } from '../services/geminiService';
+import { enhancedExtractionService } from '../services/enhancedExtractionService';
 import rlmService from '../services/rlmService';
 import n8nService from '../services/n8nService';
 import { BrandDNA, LeadProfile, GlobalSettings } from '../types';
@@ -47,14 +48,20 @@ const ExtractPage: React.FC = () => {
 
     const handleExtractDNA = async () => {
         setLoading(true);
-        setLoadingMsg(rlmActive ? 'RLM Active — Processing unbounded context...' : 'Analyzing Neural Patterns...');
+        setLoadingMsg('Scraping website architecture...');
         try {
             let dna: BrandDNA;
             
             if (rlmActive && settings?.rlm) {
+                // RLM mode uses recursive extraction
+                setLoadingMsg('RLM Active — Processing unbounded context...');
                 dna = await rlmService.extractFullDNA(url, brandName, settings.rlm);
             } else {
-                dna = await analyzeBrandDNA(url, brandName);
+                // Enhanced extraction with real web scraping
+                setLoadingMsg('Extracting visual branding, content, and styling...');
+                dna = await enhancedExtractionService.extractBrandDNA(url, brandName, {
+                    useRealScraping: true,
+                });
             }
             
             setDnaResult(dna);
@@ -69,7 +76,19 @@ const ExtractPage: React.FC = () => {
             if (errorMsg.includes('API key') || errorMsg.includes('apiKey')) {
                 alert("No API key configured. Please add an LLM API key in Settings first.");
             } else if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
-                alert("Network error. Please check your internet connection and try again.");
+                alert("Network error or CORS issue. Trying fallback extraction...");
+                // Fallback to standard extraction if scraping fails
+                try {
+                    setLoadingMsg('Using standard LLM analysis...');
+                    const dnaFallback = await analyzeBrandDNA(url, brandName);
+                    setDnaResult(dnaFallback);
+                    const existing = localStorage.getItem('core_dna_profiles');
+                    const profiles = existing ? JSON.parse(existing) : [];
+                    profiles.unshift(dnaFallback);
+                    localStorage.setItem('core_dna_profiles', JSON.stringify(profiles));
+                } catch (fallbackError) {
+                    alert(`Extraction failed: ${fallbackError}`);
+                }
             } else {
                 alert(`Extraction failed: ${errorMsg}`);
             }

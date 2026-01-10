@@ -13,6 +13,7 @@ interface HealthCheckInputProps {
     fieldName?: string; // 'apiKey', 'webhookUrl', etc.
     label?: string;
     inputType?: 'password' | 'text' | 'url';
+    getKeyUrl?: string; // Link to get API key/details
 }
 
 const HealthCheckInput: React.FC<HealthCheckInputProps> = ({
@@ -25,7 +26,8 @@ const HealthCheckInput: React.FC<HealthCheckInputProps> = ({
     placeholder,
     fieldName = 'apiKey',
     label,
-    inputType = 'password'
+    inputType = 'password',
+    getKeyUrl
 }) => {
     const [healthStatus, setHealthStatus] = useState<HealthCheckResult | null>(null);
     const [isChecking, setIsChecking] = useState(false);
@@ -167,6 +169,16 @@ const HealthCheckInput: React.FC<HealthCheckInputProps> = ({
                 )}
             </div>
             {getStatusMessage()}
+            {getKeyUrl && (
+                <a 
+                    href={getKeyUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 mt-2 font-semibold transition-colors"
+                >
+                    🔑 Get {fieldName === 'apiKey' ? 'API Key' : 'Details'} →
+                </a>
+            )}
         </div>
     );
 };

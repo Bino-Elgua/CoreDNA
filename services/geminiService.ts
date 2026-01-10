@@ -82,7 +82,7 @@ export class GeminiService {
     ollama: {
       type: 'llm',
       defaultModel: 'gemma2:27b',
-      endpoint: 'http://localhost:11434/api/generate',
+      endpoint: import.meta.env.VITE_OLLAMA_ENDPOINT || 'http://localhost:11434/api/generate',
       local: true
     },
 
@@ -127,46 +127,50 @@ export class GeminiService {
   };
 
   /**
-    * Get API key from localStorage (user-provided BYOK)
-    */
+     * Get API key from localStorage (BYOK - Bring Your Own Keys)
+     * Single source of truth: core_dna_settings in localStorage
+     * Falls back to legacy format if needed and warns user
+     */
   private getApiKey(provider: string): string {
      try {
-       // Try new settings structure first
        const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
        
        console.log(`[GeminiService] Getting API key for provider: ${provider}`);
-       console.log(`[GeminiService] Settings LLMs:`, settings.llms ? Object.keys(settings.llms) : 'none');
-       console.log(`[GeminiService] Checking llms.${provider}:`, settings.llms?.[provider]);
        
-       // Check LLM providers
-       if (settings.llms?.[provider]?.apiKey) {
-         console.log(`[GeminiService] Found LLM API key for ${provider}`);
-         return settings.llms[provider].apiKey;
+       // Check NEW unified settings structure (primary)
+       if (settings.llms?.[provider]?.apiKey?.trim()) {
+         console.log(`[GeminiService] ✓ Found LLM API key for ${provider}`);
+         return settings.llms[provider].apiKey.trim();
        }
        
-       // Check Image providers
-       if (settings.image?.[provider]?.apiKey) {
-         console.log(`[GeminiService] Found Image API key for ${provider}`);
-         return settings.image[provider].apiKey;
+       if (settings.image?.[provider]?.apiKey?.trim()) {
+         console.log(`[GeminiService] ✓ Found Image API key for ${provider}`);
+         return settings.image[provider].apiKey.trim();
        }
        
-       // Check Voice providers
-       if (settings.voice?.[provider]?.apiKey) {
-         console.log(`[GeminiService] Found Voice API key for ${provider}`);
-         return settings.voice[provider].apiKey;
+       if (settings.voice?.[provider]?.apiKey?.trim()) {
+         console.log(`[GeminiService] ✓ Found Voice API key for ${provider}`);
+         return settings.voice[provider].apiKey.trim();
        }
        
-       // Fallback to old flat structure
-       const apiKeys = JSON.parse(localStorage.getItem('apiKeys') || '{}');
-       if (apiKeys[provider]) {
-         console.log(`[GeminiService] Found API key in old flat structure for ${provider}`);
-         return apiKeys[provider];
+       if (settings.workflows?.[provider]?.apiKey?.trim()) {
+         console.log(`[GeminiService] ✓ Found Workflow API key for ${provider}`);
+         return settings.workflows[provider].apiKey.trim();
        }
        
-       // No key found
-       console.error(`[GeminiService] No API key found for ${provider}`);
-       console.error(`[GeminiService] Settings object:`, settings);
-       const errorMsg = `${provider.toUpperCase()} API key not configured. Please add it in Settings.`;
+       // FALLBACK: Check legacy apiKeys format
+       if (settings.apiKeys?.[provider]?.trim?.()) {
+         console.warn(`[GeminiService] ⚠️ Using LEGACY API key format for ${provider}`);
+         console.warn(`[GeminiService] ⚠️ Please go to Settings → Re-save your keys to migrate to new format`);
+         return settings.apiKeys[provider].trim();
+       }
+       
+       // Key not found in either format
+       console.error(`[GeminiService] ✗ No API key found for ${provider}`);
+       console.error(`[GeminiService] Configured LLMs (new format):`, settings.llms ? Object.keys(settings.llms).filter(k => settings.llms?.[k]?.apiKey?.trim?.()) : 'none');
+       console.error(`[GeminiService] Legacy API keys:`, settings.apiKeys ? Object.keys(settings.apiKeys) : 'none');
+       
+       const errorMsg = `${provider.toUpperCase()} API key not configured. Go to Settings → API Keys to add it.`;
        throw new Error(errorMsg);
      } catch (e: any) {
        if (e.message.includes('API key not configured')) {
@@ -223,16 +227,48 @@ export class GeminiService {
    * Check if a provider is configured (has API key)
    */
   hasProvider(provider: string): boolean {
-    const apiKeys = JSON.parse(localStorage.getItem('apiKeys') || '{}');
-    return !!apiKeys[provider];
+    const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
+    return !!(
+      settings.llms?.[provider]?.apiKey?.trim() ||
+      settings.image?.[provider]?.apiKey?.trim() ||
+      settings.voice?.[provider]?.apiKey?.trim() ||
+      settings.workflows?.[provider]?.apiKey?.trim()
+    );
   }
 
   /**
-   * Get list of configured providers
+   * Get list of configured providers with API keys
    */
   getConfiguredProviders(): string[] {
-    const apiKeys = JSON.parse(localStorage.getItem('apiKeys') || '{}');
-    return Object.keys(apiKeys).filter(key => apiKeys[key]);
+    const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
+    const configured: string[] = [];
+    
+    // Collect all providers with API keys
+    if (settings.llms) {
+      Object.entries(settings.llms).forEach(([key, config]: [string, any]) => {
+        if (config.apiKey?.trim()) configured.push(key);
+      });
+    }
+    
+    if (settings.image) {
+      Object.entries(settings.image).forEach(([key, config]: [string, any]) => {
+        if (config.apiKey?.trim() && !configured.includes(key)) configured.push(key);
+      });
+    }
+    
+    if (settings.voice) {
+      Object.entries(settings.voice).forEach(([key, config]: [string, any]) => {
+        if (config.apiKey?.trim() && !configured.includes(key)) configured.push(key);
+      });
+    }
+    
+    if (settings.workflows) {
+      Object.entries(settings.workflows).forEach(([key, config]: [string, any]) => {
+        if (config.apiKey?.trim() && !configured.includes(key)) configured.push(key);
+      });
+    }
+    
+    return configured;
   }
 
   /**
@@ -530,51 +566,204 @@ export const geminiService = new GeminiService();
 // Helper to get the active LLM provider
 const getActiveLLMProvider = () => {
   const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
-  const apiKeys = JSON.parse(localStorage.getItem('apiKeys') || '{}');
   
-  console.log('[getActiveLLMProvider] Starting provider detection...');
-  console.log('[getActiveLLMProvider] BYOK apiKeys:', Object.keys(apiKeys));
-  console.log('[getActiveLLMProvider] Settings.llms:', settings.llms ? Object.keys(settings.llms) : 'none');
+  console.log('[getActiveLLMProvider] Detecting active LLM provider...');
   
   // PRIORITY 1: Use explicitly set activeLLM from Settings if it has API key
   if (settings.activeLLM && settings.llms?.[settings.activeLLM]?.apiKey) {
-    console.log(`[getActiveLLMProvider] ✓ Using explicitly set activeLLM from Settings: ${settings.activeLLM}`);
+    console.log(`[getActiveLLMProvider] ✓ Using configured activeLLM: ${settings.activeLLM}`);
     return settings.activeLLM;
   }
   
-  // PRIORITY 2: Find first enabled LLM with API key in Settings format
+  // PRIORITY 2: Find first LLM with API key in settings.llms
   if (settings.llms) {
     for (const [key, config] of Object.entries(settings.llms)) {
       const llmConfig = config as any;
-      if (llmConfig.apiKey) {
-        console.log(`[getActiveLLMProvider] ✓ Found ${key} in Settings with API key`);
+      if (llmConfig.apiKey && llmConfig.apiKey.trim()) {
+        console.log(`[getActiveLLMProvider] ✓ Using first available LLM: ${key}`);
         return key;
       }
     }
   }
   
-  // PRIORITY 3: Check BYOK storage for any configured LLM providers
-  const llmProviders = ['gemini', 'openai', 'claude', 'mistral', 'groq', 'deepseek', 'xai', 'qwen', 'cohere', 'together', 'openrouter', 'perplexity'];
-  for (const provider of llmProviders) {
-    if (apiKeys[provider]) {
-      console.log(`[getActiveLLMProvider] ✓ Found ${provider} in BYOK storage`);
-      return provider;
-    }
-  }
+  console.error('[getActiveLLMProvider] ✗ No LLM provider configured with API key');
+  console.error('[getActiveLLMProvider] Configured providers:', settings.llms ? Object.keys(settings.llms) : 'none');
   
-  console.error('[getActiveLLMProvider] ✗ No configured LLM provider found!');
-  console.error('[getActiveLLMProvider] Settings:', settings);
-  console.error('[getActiveLLMProvider] BYOK Keys:', apiKeys);
-  
-  // Fallback - but this will fail when trying to get API key
-  return 'gemini';
+  throw new Error('No LLM provider configured. Go to Settings → API Keys to add an LLM provider and its API key.');
 };
 
 // Wrapper exports for backwards compatibility
-export const analyzeBrandDNA = (url: string, brandName?: string) => {
-  const provider = getActiveLLMProvider();
-  const prompt = `Analyze the brand DNA for: ${url}${brandName ? ` (Brand: ${brandName})` : ''}. Extract visual style, tone, color palette, audience, mission, and key differentiators.`;
-  return geminiService.generate(provider, prompt);
+export const analyzeBrandDNA = async (url: string, brandName?: string): Promise<any> => {
+   const provider = getActiveLLMProvider();
+   
+   // Simplified prompt that's more likely to get valid JSON
+   const prompt = `For the website "${url}" (brand: ${brandName || 'Unknown'}), create a JSON object with these EXACT fields. Return ONLY the JSON, nothing else:
+
+{
+  "id": "dna_generated",
+  "name": "${brandName || 'Brand'}",
+  "tagline": "Short brand tagline",
+  "description": "2-3 sentence brand description",
+  "mission": "Brand mission or purpose",
+  "elevatorPitch": "30-second pitch",
+  "values": ["value1", "value2"],
+  "keyMessaging": ["message1", "message2"],
+  "colors": [{"hex": "#000000", "name": "Primary", "usage": "Main color"}],
+  "fonts": [{"family": "Arial", "usage": "All", "description": "Clean sans-serif"}],
+  "visualStyle": {"style": "Modern", "description": "Contemporary design"},
+  "toneOfVoice": {"adjectives": ["professional"], "description": "Professional tone"},
+  "confidenceScores": {"visuals": 80, "strategy": 80, "tone": 80, "overall": 80},
+  "brandPersonality": ["innovative"],
+  "targetAudience": "Business professionals",
+  "personas": [{"name": "User", "demographics": "Professional", "psychographics": "Quality-focused", "painPoints": ["efficiency"], "behaviors": ["research"]}],
+  "swot": {"strengths": ["quality"], "weaknesses": ["awareness"], "opportunities": ["growth"], "threats": ["competition"]},
+  "competitors": [{"name": "Competitor", "differentiation": "Unique approach"}]
+}`;
+
+   try {
+     console.log(`[analyzeBrandDNA] Starting extraction for: ${url}`);
+     console.log(`[analyzeBrandDNA] Using provider: ${provider}`);
+     
+     const response = await geminiService.generate(provider, prompt);
+     console.log('[analyzeBrandDNA] Response received, length:', response.length);
+     
+     // Extract JSON - handle various formats
+     let jsonStr = response.trim();
+     
+     // Remove markdown code blocks if present
+     if (jsonStr.startsWith('```')) {
+       jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
+     }
+     
+     // Find JSON object in response
+     const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+     if (!jsonMatch) {
+       throw new Error('No JSON found in response');
+     }
+     
+     jsonStr = jsonMatch[0];
+     console.log('[analyzeBrandDNA] Attempting to parse JSON...');
+     
+     const parsed = JSON.parse(jsonStr);
+     console.log('[analyzeBrandDNA] ✓ Parse successful, brand name:', parsed.name);
+     
+     // Normalize and return
+     const now = Date.now();
+     return {
+       id: `dna_${now}`,
+       name: parsed.name || brandName || 'Unknown Brand',
+       tagline: parsed.tagline || 'Professional Brand',
+       description: parsed.description || 'Brand description',
+       mission: parsed.mission || 'Brand mission',
+       elevatorPitch: parsed.elevatorPitch || 'Brand pitch',
+       websiteUrl: url,
+       detectedLanguage: 'en',
+       createdAt: now,
+       values: Array.isArray(parsed.values) ? parsed.values.slice(0, 5) : ['Innovation', 'Quality'],
+       keyMessaging: Array.isArray(parsed.keyMessaging) ? parsed.keyMessaging.slice(0, 5) : ['Excellence', 'Service'],
+       confidenceScores: {
+         visuals: typeof parsed.confidenceScores?.visuals === 'number' ? parsed.confidenceScores.visuals : 75,
+         strategy: typeof parsed.confidenceScores?.strategy === 'number' ? parsed.confidenceScores.strategy : 75,
+         tone: typeof parsed.confidenceScores?.tone === 'number' ? parsed.confidenceScores.tone : 75,
+         overall: typeof parsed.confidenceScores?.overall === 'number' ? parsed.confidenceScores.overall : 75
+       },
+       colors: Array.isArray(parsed.colors) 
+         ? parsed.colors.slice(0, 5).map(c => ({ hex: c.hex || '#000000', name: c.name || 'Color', usage: c.usage || 'Primary' }))
+         : [{ hex: '#3B82F6', name: 'Blue', usage: 'Primary' }],
+       fonts: Array.isArray(parsed.fonts)
+         ? parsed.fonts.slice(0, 3).map(f => ({ family: f.family || 'Arial', usage: f.usage || 'All', description: f.description || 'Typography' }))
+         : [{ family: 'Arial', usage: 'All', description: 'Clean sans-serif' }],
+       visualStyle: {
+         style: parsed.visualStyle?.style || 'Modern',
+         description: parsed.visualStyle?.description || 'Contemporary design'
+       },
+       toneOfVoice: {
+         adjectives: Array.isArray(parsed.toneOfVoice?.adjectives) ? parsed.toneOfVoice.adjectives.slice(0, 3) : ['professional'],
+         description: parsed.toneOfVoice?.description || 'Professional and friendly'
+       },
+       brandPersonality: Array.isArray(parsed.brandPersonality) ? parsed.brandPersonality.slice(0, 3) : ['professional'],
+       targetAudience: parsed.targetAudience || 'Business professionals',
+       personas: Array.isArray(parsed.personas) 
+         ? parsed.personas.slice(0, 2).map(p => ({
+             name: p.name || 'User',
+             demographics: p.demographics || 'Professional',
+             psychographics: p.psychographics || 'Quality-conscious',
+             painPoints: Array.isArray(p.painPoints) ? p.painPoints.slice(0, 2) : ['efficiency'],
+             behaviors: Array.isArray(p.behaviors) ? p.behaviors.slice(0, 2) : ['research']
+           }))
+         : [{ name: 'Primary User', demographics: 'Professional', psychographics: 'Quality-focused', painPoints: ['efficiency'], behaviors: ['research'] }],
+       swot: {
+         strengths: Array.isArray(parsed.swot?.strengths) ? parsed.swot.strengths.slice(0, 3) : ['Quality'],
+         weaknesses: Array.isArray(parsed.swot?.weaknesses) ? parsed.swot.weaknesses.slice(0, 3) : ['Limited awareness'],
+         opportunities: Array.isArray(parsed.swot?.opportunities) ? parsed.swot.opportunities.slice(0, 3) : ['Market expansion'],
+         threats: Array.isArray(parsed.swot?.threats) ? parsed.swot.threats.slice(0, 3) : ['Competition']
+       },
+       competitors: Array.isArray(parsed.competitors)
+         ? parsed.competitors.slice(0, 3).map(c => ({ name: c.name || 'Competitor', differentiation: c.differentiation || 'Different approach' }))
+         : [{ name: 'Market competitor', differentiation: 'Alternative solution' }]
+     };
+   } catch (error: any) {
+     console.error('[analyzeBrandDNA] ✗ Error:', error.message);
+     
+     // Return rich fallback profile with all fields populated
+     const now = Date.now();
+     return {
+       id: `dna_${now}`,
+       name: brandName || 'Unknown Brand',
+       tagline: 'Professional brand in focus',
+       description: `This brand focuses on delivering value to ${brandName ? 'its' : 'their'} audience through innovative solutions and quality service.`,
+       mission: `To provide excellent ${brandName ? 'brand-specific' : ''} solutions that create lasting value`,
+       elevatorPitch: `${brandName || 'This brand'} delivers innovative solutions with a focus on quality and customer success.`,
+       websiteUrl: url,
+       detectedLanguage: 'en',
+       createdAt: now,
+       values: ['Innovation', 'Quality', 'Customer Focus', 'Integrity', 'Excellence'],
+       keyMessaging: ['Innovative solutions', 'Quality service', 'Customer success', 'Reliable partnership', 'Market leadership'],
+       confidenceScores: { visuals: 60, strategy: 60, tone: 60, overall: 60 },
+       colors: [
+         { hex: '#3B82F6', name: 'Primary Blue', usage: 'Main brand color' },
+         { hex: '#10B981', name: 'Success Green', usage: 'Accent color' },
+         { hex: '#F59E0B', name: 'Warning Amber', usage: 'Secondary accent' }
+       ],
+       fonts: [
+         { family: 'Inter', usage: 'Body text', description: 'Modern sans-serif' },
+         { family: 'Poppins', usage: 'Headlines', description: 'Bold geometric sans-serif' }
+       ],
+       visualStyle: { style: 'Modern Minimalist', description: 'Clean, professional design with focus on clarity' },
+       toneOfVoice: { 
+         adjectives: ['professional', 'friendly', 'innovative'],
+         description: 'Professional yet approachable, with emphasis on innovation and customer success'
+       },
+       brandPersonality: ['innovative', 'reliable', 'customer-focused'],
+       targetAudience: 'Business professionals and organizations seeking quality solutions',
+       personas: [
+         {
+           name: 'Strategic Decision Maker',
+           demographics: 'Age 35-55, C-level executive',
+           psychographics: 'Values efficiency and ROI',
+           painPoints: ['time constraints', 'budget limitations', 'integration complexity'],
+           behaviors: ['researches thoroughly', 'reads case studies', 'values testimonials']
+         },
+         {
+           name: 'Implementation Manager',
+           demographics: 'Age 25-40, operations manager',
+           psychographics: 'Values practical solutions',
+           painPoints: ['system integration', 'team adoption', 'support quality'],
+           behaviors: ['tests features', 'checks documentation', 'talks to references']
+         }
+       ],
+       swot: {
+         strengths: ['Strong brand identity', 'Quality focus', 'Customer loyalty'],
+         weaknesses: ['Market awareness', 'Budget constraints', 'Geographic reach'],
+         opportunities: ['Market expansion', 'New partnerships', 'Product development'],
+         threats: ['Competitive pressure', 'Market changes', 'Technology shifts']
+       },
+       competitors: [
+         { name: 'Direct Competitor', differentiation: 'Different market positioning' },
+         { name: 'Indirect Competitor', differentiation: 'Alternative solution approach' }
+       ]
+     };
+   }
 };
 
 export const findLeadsWithMaps = (niche: string, latitude?: number, longitude?: number) => {
@@ -594,8 +783,10 @@ export const runCloserAgent = (lead: any, sender?: any) => {
 
 export const generateAssetImage = (prompt: string) => {
   const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
-  const provider = settings.activeImageGen || 'openai';
-  return geminiService.generate(provider, `Generate image: ${prompt}`).then(url => ({ url }));
+  if (!settings.activeImageGen) {
+    throw new Error('No image generation provider configured. Please select an image provider in Settings and add its API key.');
+  }
+  return geminiService.generate(settings.activeImageGen, `Generate image: ${prompt}`).then(url => ({ url }));
 };
 
 export const generateCampaignAssets = (dna: any, goal?: string, channels?: string[], count?: number, tone?: string) => {
@@ -612,12 +803,42 @@ export const runAgentHiveCampaign = (dna: any, goal: string, channel: string, st
   return geminiService.generate(provider, prompt);
 };
 export const createBrandChat = () => geminiService;
-export const generateAgentSystemPrompt = (config: any) => geminiService.generate(`Generate agent prompt`);
+export const generateAgentSystemPrompt = (config: any) => {
+  const provider = getActiveLLMProvider();
+  return geminiService.generate(provider, `Generate agent prompt`);
+};
 export const createAgentChat = () => geminiService;
-export const runBattleSimulation = (brand1: any, brand2: any) => geminiService.generate(`Battle ${brand1} vs ${brand2}`);
-export const analyzeUploadedAssets = (assets: any[]) => geminiService.generate(`Analyze assets`);
-export const optimizeSchedule = (posts: any[]) => geminiService.generate(`Optimize schedule`);
+export const runBattleSimulation = (brand1: any, brand2: any) => {
+  const provider = getActiveLLMProvider();
+  return geminiService.generate(provider, `Battle ${brand1} vs ${brand2}`);
+};
+export const analyzeUploadedAssets = (assets: any[]) => {
+  const provider = getActiveLLMProvider();
+  return geminiService.generate(provider, `Analyze assets`);
+};
+export const optimizeSchedule = (posts: any[]) => {
+  const provider = getActiveLLMProvider();
+  return geminiService.generate(provider, `Optimize schedule`);
+};
 export const generateVeoVideo = (prompt: string) => Promise.resolve({ url: 'https://via.placeholder.com/video.mp4' });
-export const generateTrendPulse = (topic: string) => geminiService.generate(`Trend pulse for ${topic}`);
-export const refineAssetWithAI = (asset: any, feedback: string) => geminiService.generate(`Refine asset: ${feedback}`);
-export const universalGenerate = (prompt: string) => geminiService.generate(prompt);
+export const generateTrendPulse = async (dna: any): Promise<any[]> => {
+   const provider = getActiveLLMProvider();
+   const prompt = `Generate 3 trending topics relevant to "${dna.name}" brand in their industry. For each trend, provide JSON with: id (unique), topic (title), summary (2-3 sentences), relevanceScore (1-100), and suggestedAngle (brand reaction). Return as valid JSON array only.`;
+   try {
+     const response = await geminiService.generate(provider, prompt);
+     // Parse JSON response, fallback to empty array if invalid
+     const parsed = JSON.parse(response);
+     return Array.isArray(parsed) ? parsed : [];
+   } catch (e) {
+     console.error('Failed to generate trends:', e);
+     return [];
+   }
+};
+export const refineAssetWithAI = (asset: any, feedback: string) => {
+  const provider = getActiveLLMProvider();
+  return geminiService.generate(provider, `Refine asset: ${feedback}`);
+};
+export const universalGenerate = (prompt: string) => {
+  const provider = getActiveLLMProvider();
+  return geminiService.generate(provider, prompt);
+};

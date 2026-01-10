@@ -429,10 +429,16 @@ Return a JSON object with:
     private extractSonicConfig(dna: BrandDNA, settings?: any): GeneratedSite['sonicConfig'] {
         const sonicIdentity = dna.sonicIdentity;
 
+        // Validate TTS provider if voice is enabled
+        const voiceEnabled = !settings?.website?.disableVoiceMode && !!sonicIdentity;
+        if (voiceEnabled && !settings?.activeVoice) {
+            throw new Error('Voice mode enabled but no TTS provider configured. Please select a voice provider in Settings and add its API key.');
+        }
+
         return {
             enabled: !settings?.website?.disableSonicAgent,
-            voiceEnabled: !settings?.website?.disableVoiceMode && !!sonicIdentity,
-            ttsProvider: settings?.activeVoice || 'elevenlabs',
+            voiceEnabled,
+            ttsProvider: settings?.activeVoice,
             voiceType: sonicIdentity?.voiceType || 'professional',
         };
     }

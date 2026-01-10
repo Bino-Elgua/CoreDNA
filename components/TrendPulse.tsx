@@ -25,14 +25,16 @@ const TrendPulse: React.FC<TrendPulseProps> = ({ dna }) => {
             const key = `pulse_${dna.id}_${new Date().toDateString()}`;
             const cached = localStorage.getItem(key);
             if (cached) {
-                setTrends(JSON.parse(cached));
+                const parsed = JSON.parse(cached);
+                setTrends(Array.isArray(parsed) ? parsed : []);
             } else {
                 const fresh = await generateTrendPulse(dna);
-                setTrends(fresh);
-                localStorage.setItem(key, JSON.stringify(fresh));
+                setTrends(Array.isArray(fresh) ? fresh : []);
+                localStorage.setItem(key, JSON.stringify(fresh || []));
             }
         } catch (e) {
-            console.error(e);
+            console.error('Error loading trends:', e);
+            setTrends([]);
         } finally {
             setLoading(false);
         }

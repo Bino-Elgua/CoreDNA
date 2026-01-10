@@ -75,20 +75,25 @@ const App: React.FC = () => {
 
   useEffect(() => {
     try {
-      // Check BOTH BYOK storage AND Settings-based storage
-      const apiKeys = localStorage.getItem('apiKeys');
-      const hasByokKeys = apiKeys && Object.keys(JSON.parse(apiKeys)).length > 0;
-      
       const settings = localStorage.getItem('core_dna_settings');
-      const hasSettingsKeys = settings && (
-        JSON.parse(settings)?.llms && Object.keys(JSON.parse(settings).llms).some((k: string) => JSON.parse(settings).llms[k]?.apiKey) ||
-        JSON.parse(settings)?.image && Object.keys(JSON.parse(settings).image).some((k: string) => JSON.parse(settings).image[k]?.apiKey)
-      );
-      
       const dismissed = localStorage.getItem('apiPromptDismissed');
 
-      // Only show prompt if NO keys are configured anywhere AND not dismissed
-      if (!hasByokKeys && !hasSettingsKeys && !dismissed) {
+      if (settings) {
+        try {
+          const parsed = JSON.parse(settings);
+          // Check if any provider has an API key configured
+          const hasLLMKey = parsed.llms && Object.values(parsed.llms).some((config: any) => config?.apiKey?.trim());
+          const hasImageKey = parsed.image && Object.values(parsed.image).some((config: any) => config?.apiKey?.trim());
+          
+          // Only show prompt if NO keys configured AND not dismissed
+          if (!hasLLMKey && !hasImageKey && !dismissed) {
+            setShowApiPrompt(true);
+          }
+        } catch (e) {
+          console.error('Error parsing settings:', e);
+          if (!dismissed) setShowApiPrompt(true);
+        }
+      } else if (!dismissed) {
         setShowApiPrompt(true);
       }
     } catch (e) {

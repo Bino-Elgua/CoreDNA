@@ -27,7 +27,7 @@ const INITIAL_SETTINGS: GlobalSettings = {
     },
     whiteLabel: { enabled: false, agencyName: '', logoUrl: '' },
     llms: {
-        google: { provider: 'google', enabled: true, apiKey: process.env.API_KEY || '' },
+        google: { provider: 'google', enabled: true, apiKey: '' },
         openai: { provider: 'openai', enabled: false, apiKey: '', defaultModel: 'gpt-4o' },
         anthropic: { provider: 'anthropic', enabled: false, apiKey: '', defaultModel: 'claude-3-5-sonnet-latest' },
         mistral: { provider: 'mistral', enabled: false, apiKey: '', defaultModel: 'mistral-large-latest', baseUrl: 'https://api.mistral.ai/v1' },
@@ -41,8 +41,8 @@ const INITIAL_SETTINGS: GlobalSettings = {
         cohere: { provider: 'cohere', enabled: false, apiKey: '', defaultModel: 'command-r-plus' },
         meta_llama: { provider: 'meta_llama', enabled: false, apiKey: '', baseUrl: 'https://api.together.xyz/v1', defaultModel: 'meta-llama/Llama-3.3-70b-instruct-turbo' }, // NEW
         microsoft: { provider: 'microsoft', enabled: false, apiKey: '', defaultModel: 'gpt-4', baseUrl: 'https://YOUR_RESOURCE.openai.azure.com/' },
-        ollama: { provider: 'ollama', enabled: false, apiKey: '', baseUrl: 'http://localhost:11434/v1', defaultModel: 'llama3' },
-        custom_openai: { provider: 'custom_openai', enabled: false, apiKey: '', baseUrl: 'http://localhost:1234/v1' },
+        ollama: { provider: 'ollama', enabled: false, apiKey: '', baseUrl: '', defaultModel: 'llama3' },
+        custom_openai: { provider: 'custom_openai', enabled: false, apiKey: '', baseUrl: '', defaultModel: 'gpt-3.5-turbo' },
         // High Performance
         sambanova: { provider: 'sambanova', enabled: false, apiKey: '', baseUrl: 'https://api.sambanova.ai/v1' },
         cerebras: { provider: 'cerebras', enabled: false, apiKey: '', baseUrl: 'https://api.cerebras.ai/v1' },
@@ -107,29 +107,29 @@ const INITIAL_SETTINGS: GlobalSettings = {
          custom: { provider: 'custom', enabled: false, endpoint: '' },
      },
      video: {
-         sora2: { provider: 'sora2', enabled: false, apiKey: '' },
-         veo3: { provider: 'veo3', enabled: false, apiKey: '' },
-         runway: { provider: 'runway', enabled: false, apiKey: '' },
-         kling: { provider: 'kling', enabled: false, apiKey: '' },
-         luma: { provider: 'luma', enabled: false, apiKey: '' },
-         ltx2: { provider: 'ltx2', enabled: false, apiKey: '' },
-         wan: { provider: 'wan', enabled: false, apiKey: '' },
-         hunyuan: { provider: 'hunyuan', enabled: false, apiKey: '' },
-         mochi: { provider: 'mochi', enabled: false, apiKey: '' },
-         seedance: { provider: 'seedance', enabled: false, apiKey: '' },
-         pika: { provider: 'pika', enabled: false, apiKey: '' },
-         hailuo: { provider: 'hailuo', enabled: false, apiKey: '' },
-         pixverse: { provider: 'pixverse', enabled: false, apiKey: '' },
-         higgsfield: { provider: 'higgsfield', enabled: false, apiKey: '' },
-         heygen: { provider: 'heygen', enabled: false, apiKey: '' },
-         synthesia: { provider: 'synthesia', enabled: false, apiKey: '' },
-         deepbrain: { provider: 'deepbrain', enabled: false, apiKey: '' },
-         colossyan: { provider: 'colossyan', enabled: false, apiKey: '' },
-         replicate: { provider: 'replicate', enabled: false, apiKey: '' },
-         fal: { provider: 'fal', enabled: false, apiKey: '' },
-         fireworks: { provider: 'fireworks', enabled: false, apiKey: '' },
-         wavespeed: { provider: 'wavespeed', enabled: false, apiKey: '' },
-     },
+          sora2: { provider: 'sora2', enabled: false, apiKey: '' },
+          veo3: { provider: 'veo3', enabled: false, apiKey: '' },
+          runway: { provider: 'runway', enabled: false, apiKey: '' },
+          kling: { provider: 'kling', enabled: false, apiKey: '' },
+          luma: { provider: 'luma', enabled: false, apiKey: '' },
+          ltx2: { provider: 'ltx2', enabled: false, apiKey: '' },
+          wan_video: { provider: 'wan_video', enabled: false, apiKey: '' },
+          hunyuan_video: { provider: 'hunyuan_video', enabled: false, apiKey: '' },
+          mochi: { provider: 'mochi', enabled: false, apiKey: '' },
+          seedance: { provider: 'seedance', enabled: false, apiKey: '' },
+          pika: { provider: 'pika', enabled: false, apiKey: '' },
+          hailuo: { provider: 'hailuo', enabled: false, apiKey: '' },
+          pixverse: { provider: 'pixverse', enabled: false, apiKey: '' },
+          higgsfield: { provider: 'higgsfield', enabled: false, apiKey: '' },
+          heygen: { provider: 'heygen', enabled: false, apiKey: '' },
+          synthesia: { provider: 'synthesia', enabled: false, apiKey: '' },
+          deepbrain: { provider: 'deepbrain', enabled: false, apiKey: '' },
+          colossyan: { provider: 'colossyan', enabled: false, apiKey: '' },
+          replicate_video: { provider: 'replicate_video', enabled: false, apiKey: '' },
+          fal: { provider: 'fal', enabled: false, apiKey: '' },
+          fireworks: { provider: 'fireworks', enabled: false, apiKey: '' },
+          wavespeed: { provider: 'wavespeed', enabled: false, apiKey: '' },
+      },
      workflows: {
         n8n: { provider: 'n8n', enabled: false, webhookUrl: '', scheduleWebhookUrl: '' },
         zapier: { provider: 'zapier', enabled: false, webhookUrl: '', postingWebhookUrl: '' },
@@ -163,7 +163,7 @@ const PROVIDER_META: Record<string, { title: string, icon: string, fields: strin
     cohere: { title: 'Cohere', icon: '🌀', fields: ['apiKey'], getKeyUrl: 'https://dashboard.cohere.com/api-keys' },
     microsoft: { title: 'Azure OpenAI', icon: '☁️', fields: ['apiKey', 'baseUrl', 'defaultModel'], getKeyUrl: 'https://portal.azure.com/' },
     ollama: { title: 'Ollama (Local)', icon: '🖥️', fields: ['baseUrl', 'defaultModel'], getKeyUrl: 'https://ollama.com/download' },
-    custom_openai: { title: 'Custom / Local', icon: '🔧', fields: ['baseUrl', 'apiKey'] },
+    custom_openai: { title: 'Custom / Local', icon: '🔧', fields: ['baseUrl', 'apiKey'], getKeyUrl: 'https://github.com/oobabooga/text-generation-webui' },
     sambanova: { title: 'SambaNova', icon: '🚀', fields: ['apiKey', 'baseUrl'], getKeyUrl: 'https://cloud.sambanova.ai/' },
     cerebras: { title: 'Cerebras', icon: '🧬', fields: ['apiKey', 'baseUrl'], getKeyUrl: 'https://cloud.cerebras.ai/' },
     hyperbolic: { title: 'Hyperbolic', icon: '⏱️', fields: ['apiKey', 'baseUrl'], getKeyUrl: 'https://app.hyperbolic.xyz/' },
@@ -222,7 +222,7 @@ const PROVIDER_META: Record<string, { title: string, icon: string, fields: strin
     google_tts: { title: 'Google TTS', icon: '🔮', fields: ['apiKey'], getKeyUrl: 'https://console.cloud.google.com/apis/credentials' },
     azure: { title: 'Azure Speech', icon: '☁️', fields: ['apiKey', 'endpoint'], getKeyUrl: 'https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeech' },
     piper: { title: 'Piper (Local)', icon: '🖥️', fields: ['endpoint'], getKeyUrl: 'https://github.com/rhasspy/piper' },
-    custom: { title: 'Custom TTS', icon: '🔧', fields: ['endpoint'] },
+    custom: { title: 'Custom TTS', icon: '🔧', fields: ['endpoint'], getKeyUrl: 'https://github.com/coqui-ai/TTS' },
 
     // Workflows
     n8n: { title: 'n8n', icon: '🔗', fields: ['webhookUrl'], getKeyUrl: 'https://n8n.io/' },
@@ -236,7 +236,7 @@ const PROVIDER_META: Record<string, { title: string, icon: string, fields: strin
     pabbly: { title: 'Pabbly', icon: '📦', fields: ['webhookUrl'], getKeyUrl: 'https://www.pabbly.com/connect/' },
     tray: { title: 'Tray.io', icon: '🎯', fields: ['webhookUrl'], getKeyUrl: 'https://tray.io/' },
     dify_workflows: { title: 'Dify Workflows', icon: '🎯', fields: ['apiKey', 'webhookUrl'], getKeyUrl: 'https://cloud.dify.ai/' },
-    custom_rag: { title: 'Custom RAG', icon: '🗂️', fields: ['webhookUrl'] },
+    custom_rag: { title: 'Custom RAG', icon: '🗂️', fields: ['webhookUrl'], getKeyUrl: 'https://docs.langchain.com/docs/modules/agents/agents' },
 
     // Video
     sora2: { title: 'OpenAI Sora 2', icon: '🎬', fields: ['apiKey'], getKeyUrl: 'https://platform.openai.com/api-keys' },
@@ -245,8 +245,8 @@ const PROVIDER_META: Record<string, { title: string, icon: string, fields: strin
     kling: { title: 'Kling AI 2.6', icon: '✨', fields: ['apiKey'], getKeyUrl: 'https://klingai.com/' },
     luma: { title: 'Luma Dream Machine', icon: '🌀', fields: ['apiKey'], getKeyUrl: 'https://lumalabs.ai/' },
     ltx2: { title: 'Lightricks LTX-2', icon: '⚡', fields: ['apiKey'], getKeyUrl: 'https://fal.ai/dashboard' },
-    wan: { title: 'Wan 2.6', icon: '🌊', fields: ['apiKey'], getKeyUrl: 'https://replicate.com/' },
-    hunyuan: { title: 'HunyuanVideo', icon: '🎯', fields: ['apiKey'], getKeyUrl: 'https://replicate.com/' },
+    wan_video: { title: 'Wan 2.6', icon: '🌊', fields: ['apiKey'], getKeyUrl: 'https://replicate.com/' },
+    hunyuan_video: { title: 'HunyuanVideo', icon: '🎯', fields: ['apiKey'], getKeyUrl: 'https://replicate.com/' },
     mochi: { title: 'Mochi', icon: '🍡', fields: ['apiKey'], getKeyUrl: 'https://fal.ai/dashboard' },
     seedance: { title: 'Seedance 1.5', icon: '🌱', fields: ['apiKey'], getKeyUrl: 'https://www.seedance.com/' },
     pika: { title: 'Pika Labs 2.2', icon: '🎨', fields: ['apiKey'], getKeyUrl: 'https://pika.art/' },
@@ -257,7 +257,7 @@ const PROVIDER_META: Record<string, { title: string, icon: string, fields: strin
     synthesia: { title: 'Synthesia', icon: '🎬', fields: ['apiKey'], getKeyUrl: 'https://www.synthesia.io/api' },
     deepbrain: { title: 'DeepBrain AI', icon: '🧠', fields: ['apiKey'], getKeyUrl: 'https://www.deepbrainai.io/api' },
     colossyan: { title: 'Colossyan', icon: '📚', fields: ['apiKey'], getKeyUrl: 'https://www.colossyan.com/api' },
-    replicate: { title: 'Replicate (Multi)', icon: '🔄', fields: ['apiKey'], getKeyUrl: 'https://replicate.com/api' },
+    replicate_video: { title: 'Replicate (Multi)', icon: '🔄', fields: ['apiKey'], getKeyUrl: 'https://replicate.com/api' },
     fal: { title: 'fal.ai (Multi)', icon: '✨', fields: ['apiKey'], getKeyUrl: 'https://fal.ai/dashboard' },
     fireworks: { title: 'Fireworks.ai (Multi)', icon: '🔥', fields: ['apiKey'], getKeyUrl: 'https://fireworks.ai/' },
     wavespeed: { title: 'WaveSpeedAI (Multi)', icon: '⚙️', fields: ['apiKey'], getKeyUrl: 'https://wavespeed.io/' },
@@ -293,6 +293,9 @@ const SettingsPage: React.FC = () => {
         };
         loadSettings();
     }, []);
+
+    // Disabled: Auto-save was hiding the save button
+    // Now user must explicitly click Save button
 
     const handleSave = async () => {
         try {
@@ -443,6 +446,7 @@ const SettingsPage: React.FC = () => {
                                         fieldName={field}
                                         placeholder={getFieldPlaceholder(field)}
                                         inputType={getFieldInputType(field) as 'password' | 'text' | 'url'}
+                                        getKeyUrl={meta.getKeyUrl}
                                     />
                                 );
                             } else if (useHealthCheck && isWorkflowProvider) {
@@ -470,6 +474,7 @@ const SettingsPage: React.FC = () => {
                                         fieldName={field}
                                         placeholder={getFieldPlaceholder(field)}
                                         inputType={getFieldInputType(field) as 'password' | 'text' | 'url'}
+                                        getKeyUrl={meta.getKeyUrl}
                                     />
                                 );
                             }
@@ -504,9 +509,9 @@ const SettingsPage: React.FC = () => {
                                             href={meta.getKeyUrl} 
                                             target="_blank" 
                                             rel="noopener noreferrer" 
-                                            className="text-[10px] text-dna-primary hover:text-dna-secondary hover:underline flex items-center gap-1 mt-1 font-medium"
+                                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 mt-2 font-semibold transition-colors"
                                         >
-                                            Get {field === 'apiKey' ? 'API Key' : 'Details'} &rarr;
+                                            🔑 Get {field === 'apiKey' ? 'API Key' : 'Details'} →
                                         </a>
                                     )}
                                     {useHealthCheck && meta.getKeyUrl && (
@@ -514,9 +519,9 @@ const SettingsPage: React.FC = () => {
                                             href={meta.getKeyUrl} 
                                             target="_blank" 
                                             rel="noopener noreferrer" 
-                                            className="text-[10px] text-dna-primary hover:text-dna-secondary hover:underline flex items-center gap-1 mt-1 font-medium"
+                                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 mt-2 font-semibold transition-colors"
                                         >
-                                            Get {field === 'apiKey' ? 'API Key' : 'Details'} &rarr;
+                                            🔑 Get {field === 'apiKey' ? 'API Key' : 'Details'} →
                                         </a>
                                     )}
                                 </div>
@@ -553,19 +558,17 @@ const SettingsPage: React.FC = () => {
                     <h1 className="text-4xl font-display font-bold text-gray-900 dark:text-white">Neural Settings</h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">Configure models, voices, and automated scheduling workflows.</p>
                 </div>
-                {hasChanges && (
-                    <motion.div 
-                        initial={{ scale: 0.9, opacity: 0 }} 
-                        animate={{ scale: 1, opacity: 1 }}
-                    >
-                        <button 
-                            onClick={handleSave}
-                            className="px-6 py-3 bg-gradient-to-r from-dna-secondary to-dna-primary text-white rounded-xl font-bold shadow-lg hover:shadow-dna-primary/30 flex items-center gap-2 transition-all active:scale-95"
-                        >
-                            Save Changes
-                        </button>
-                    </motion.div>
-                )}
+                <button 
+                    onClick={handleSave}
+                    disabled={!hasChanges}
+                    className={`px-6 py-3 text-white rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95 ${
+                        hasChanges 
+                            ? 'bg-gradient-to-r from-dna-secondary to-dna-primary shadow-lg hover:shadow-dna-primary/30 cursor-pointer'
+                            : 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-50'
+                    }`}
+                >
+                    {hasChanges ? 'Save Changes' : 'No Changes'}
+                </button>
             </div>
 
             <div className="bg-white dark:bg-gray-900/50 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden">

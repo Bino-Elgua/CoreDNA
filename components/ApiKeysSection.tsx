@@ -287,51 +287,53 @@ export function ApiKeysSection() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <input
-                    type={showKeys[provider.id] ? 'text' : 'password'}
-                    value={apiKeys[provider.id] || ''}
-                    onChange={(e) => updateApiKey(provider.id, e.target.value)}
-                    placeholder={
-                      provider.local 
-                        ? 'http://localhost:...' 
-                        : provider.id === 'azure' 
-                        ? 'Endpoint URL' 
-                        : 'API key'
-                    }
-                    className="flex-1 text-sm px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-900 dark:text-white"
-                  />
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type={showKeys[provider.id] ? 'text' : 'password'}
+                      value={apiKeys[provider.id] || ''}
+                      onChange={(e) => updateApiKey(provider.id, e.target.value)}
+                      placeholder={
+                        provider.local 
+                          ? 'http://localhost:...' 
+                          : provider.id === 'azure' 
+                          ? 'Endpoint URL' 
+                          : 'API key'
+                      }
+                      className="flex-1 text-sm px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-900 dark:text-white"
+                    />
 
-                  {hasKey && (
-                    <>
-                      <button
-                        onClick={() => toggleShowKey(provider.id)}
-                        title={showKeys[provider.id] ? 'Hide key' : 'Show key'}
-                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-sm transition-colors"
-                      >
-                        {showKeys[provider.id] ? '🙈' : '👁️'}
-                      </button>
-                      <button
-                        onClick={() => deleteApiKey(provider.id)}
-                        title="Remove key"
-                        className="px-3 py-2 border border-red-300 text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-sm transition-colors"
-                      >
-                        🗑️
-                      </button>
-                    </>
+                    {hasKey && (
+                      <>
+                        <button
+                          onClick={() => toggleShowKey(provider.id)}
+                          title={showKeys[provider.id] ? 'Hide key' : 'Show key'}
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-sm transition-colors"
+                        >
+                          {showKeys[provider.id] ? '🙈' : '👁️'}
+                        </button>
+                        <button
+                          onClick={() => deleteApiKey(provider.id)}
+                          title="Remove key"
+                          className="px-3 py-2 border border-red-300 text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-sm transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {provider.link && (
+                    <a 
+                      href={provider.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-block w-full text-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition-colors"
+                    >
+                      🔑 Get API Key
+                    </a>
                   )}
                 </div>
-
-                {provider.link && (
-                  <a 
-                    href={provider.link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-500 hover:underline whitespace-nowrap inline-block mt-2"
-                  >
-                    Get Key →
-                  </a>
-                )}
               </div>
             );
           })}

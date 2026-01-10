@@ -38,8 +38,15 @@ class N8nWorkflowService {
     private lastHealthCheck = Date.now();
 
     constructor() {
-        // Read from environment or config
-        this.baseUrl = import.meta.env.VITE_N8N_API_URL || 'http://localhost:5678/api/v1';
+        // Read from environment - n8n is optional and requires explicit configuration
+        const n8nUrl = import.meta.env.VITE_N8N_API_URL;
+        if (!n8nUrl) {
+            console.warn('[N8nService] n8n not configured. Set VITE_N8N_API_URL in .env.local to enable automation workflows.');
+            this.baseUrl = '';
+            this.isHealthy = false;
+        } else {
+            this.baseUrl = n8nUrl;
+        }
         this.apiKey = import.meta.env.VITE_N8N_API_KEY || 'internal';
     }
 
