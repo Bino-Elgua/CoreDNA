@@ -135,15 +135,17 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, toggleDarkMode }) =
       </motion.aside>
 
       {/* Main Content Area - Full Immersive Blue Gradient */}
-       <main className="flex-grow transition-all duration-300 relative flex flex-col">
+       <main className="flex-grow transition-all duration-300 relative flex flex-col overflow-hidden">
           <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
              <div className="absolute inset-0 bg-[#050b18] bg-gradient-to-br from-[#0a1931] via-[#050b18] to-[#0d2142]" />
              <div className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] bg-blue-600/10 rounded-full blur-[140px]" />
              <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-dna-primary/10 rounded-full blur-[120px]" />
           </div>
          
-         <div className="relative z-10 w-full h-auto overflow-y-auto custom-scrollbar p-4 md:p-8">
-           {children}
+         <div className="relative z-10 w-full h-full overflow-y-auto custom-scrollbar p-4 md:p-8">
+           <div className="w-full">
+             {children}
+           </div>
          </div>
        </main>
     </div>
