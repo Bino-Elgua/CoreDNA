@@ -93,8 +93,14 @@ const LiveSessionPage: React.FC = () => {
             audioContextRef.current = audioCtx;
             nextStartTimeRef.current = audioCtx.currentTime;
 
-            // 2. Initialize Gemini Client
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            // 2. Initialize Gemini Client - get from settings, not environment
+            const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
+            const geminiKey = settings.llms?.google?.apiKey || settings.llms?.gemini?.apiKey || '';
+            if (!geminiKey) {
+              addLog('Error: No Gemini API key configured. Please add it in Settings → API Keys');
+              return;
+            }
+            const ai = new GoogleGenAI({ apiKey: geminiKey });
             
             addLog("Connecting to Gemini Live...");
             
