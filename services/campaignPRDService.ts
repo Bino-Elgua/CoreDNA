@@ -4,32 +4,7 @@
  * Converts campaign briefs into structured task lists for autonomous execution
  */
 
-import { geminiService } from './geminiService';
-import { generateImage } from './mediaGenerationService';
-
-const getActiveLLMProvider = () => {
-  const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
-  
-  if (settings.activeLLM && settings.llms?.[settings.activeLLM]?.apiKey?.trim()) {
-    return settings.activeLLM;
-  }
-  
-  if (settings.llms && Object.keys(settings.llms).length > 0) {
-    for (const key of Object.keys(settings.llms)) {
-      if (key !== 'google' && key !== 'gemini') {
-        const llmConfig = settings.llms[key] as any;
-        if (llmConfig?.apiKey?.trim()) return key;
-      }
-    }
-    
-    for (const [key, config] of Object.entries(settings.llms)) {
-      const llmConfig = config as any;
-      if (llmConfig?.apiKey?.trim()) return key;
-    }
-  }
-  
-  throw new Error('No LLM provider configured');
-};
+import { generateText, generateImage } from './ai/router';
 
 export interface CampaignUserStory {
   id: string;
@@ -89,8 +64,9 @@ async function generateAssetImages(userStories: CampaignUserStory[], onProgress?
         
         const result = await generateImage(prompt, { style: 'professional marketing' });
         
-        imageMap.set(story.id, result.url);
-        console.log(`[generateAssetImages] ✓ Generated image for ${story.id}: ${result.url.substring(0, 80)}`);
+        const imageUrl = result ? result.url : `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(story.title)}`;
+        imageMap.set(story.id, imageUrl);
+        console.log(`[generateAssetImages] ✓ Generated image for ${story.id}: ${imageUrl.substring(0, 80)}`);
       } catch (error: any) {
         console.error(`[generateAssetImages] Failed for ${story.id}:`, error.message, error.stack);
       }
@@ -111,8 +87,6 @@ export async function generateCampaignPRD(
   onProgress?: (msg: string) => void
 ): Promise<CampaignPRD> {
   try {
-    const provider = getActiveLLMProvider();
-    
     if (onProgress) onProgress('Analyzing campaign brief...');
     
     const prompt = `You are a marketing strategist and product manager. Generate a detailed campaign PRD (Product Requirements Document) in JSON format.
@@ -163,7 +137,7 @@ Create 6-8 user stories covering:
 Each story should be small enough to complete in one iteration (1-4 hours).
 Prioritize stories 1 being highest priority.`;
 
-    const response = await geminiService.generate(provider, prompt);
+    const response = await generateText(prompt);
     
     if (onProgress) onProgress('Parsing PRD structure...');
     
