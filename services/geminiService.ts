@@ -806,68 +806,23 @@ export const runCloserAgent = (lead: any, sender?: any) => {
   return geminiService.generate(provider, prompt);
 };
 
+/**
+ * Legacy wrapper for generateAssetImage - delegates to mediaGenerationService
+ * Kept for backwards compatibility but uses real media generation service
+ */
 export const generateAssetImage = async (prompt: string, style?: string): Promise<string> => {
   try {
-    // ALWAYS read fresh from localStorage to get latest settings
-    const settingsStr = localStorage.getItem('core_dna_settings');
-    if (!settingsStr) {
-      console.warn('[generateAssetImage] No settings found in localStorage');
-      return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
-    }
+    // Import and use the real media generation service
+    const { generateImage } = await import('./mediaGenerationService');
     
-    const settings = JSON.parse(settingsStr);
-    const provider = settings.activeImageGen;
+    console.log(`[generateAssetImage] Delegating to mediaGenerationService`);
+    const result = await generateImage(prompt, { style });
     
-    console.log(`[generateAssetImage] Using provider: ${provider}`);
-    
-    // If no provider configured, return placeholder immediately
-    if (!provider) {
-      console.warn('[generateAssetImage] No image provider configured, using placeholder');
-      return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
-    }
-    
-    const config = settings.image?.[provider];
-    if (!config?.apiKey) {
-      console.warn(`[generateAssetImage] No API key for ${provider}, using placeholder`);
-      return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
-    }
-    
-    // Use Stability AI for image generation (most reliable)
-    if (provider === 'stability' || provider === 'sd3' || provider === 'fal_flux') {
-      try {
-        const fullPrompt = style ? `${prompt}. Style: ${style}` : prompt;
-        
-        const formData = new FormData();
-        formData.append('prompt', fullPrompt);
-        formData.append('output_format', 'jpeg');
-        
-        const response = await fetch('https://api.stability.ai/v2beta/stable-image/generate/core', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${config.apiKey}`
-          },
-          body: formData
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Stability AI error: ${response.status}`);
-        }
-        
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        return url;
-      } catch (e) {
-        console.error('[generateAssetImage] Stability AI failed:', e);
-        console.warn('[generateAssetImage] Falling back to placeholder');
-        return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
-      }
-    }
-    
-    // Fallback: return placeholder for unsupported providers
-    console.warn(`[generateAssetImage] Provider ${provider} not fully implemented, using placeholder`);
-    return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
+    console.log(`[generateAssetImage] ✓ Generated from ${result.provider}`);
+    return result.url;
   } catch (error: any) {
-    console.error('[generateAssetImage] Unexpected error:', error.message);
+    console.error('[generateAssetImage] Error:', error.message);
+    // Return placeholder on error
     return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
   }
 };
