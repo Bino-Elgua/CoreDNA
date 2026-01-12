@@ -33,13 +33,18 @@ const LeadHunterPanel: React.FC<LeadHunterPanelProps> = ({ dna }) => {
         try {
             // Placeholder: Would call geminiService to hunt competitors
             const mockLeads = [
-                { id: '1', name: 'Competitor 1', score: 72, domain: 'competitor1.com' },
-                { id: '2', name: 'Competitor 2', score: 68, domain: 'competitor2.com' },
-                { id: '3', name: 'Competitor 3', score: 65, domain: 'competitor3.com' },
+                { id: '1', name: 'Competitor 1', matchScore: 72, website: 'competitor1.com', revenue: '$2.5M' },
+                { id: '2', name: 'Competitor 2', matchScore: 68, website: 'competitor2.com', revenue: '$1.8M' },
+                { id: '3', name: 'Competitor 3', matchScore: 65, website: 'competitor3.com', revenue: '$1.2M' },
             ];
             setLeads(mockLeads);
         } catch (e) {
-            alert("Hunt failed. Satellites offline.");
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            if (errorMsg.includes('No LLM provider')) {
+                alert('❌ No API Keys Configured\n\nGo to Settings → API Keys and add at least one LLM provider (OpenAI, Claude, Gemini, etc.) with its API key.');
+            } else {
+                alert("Hunt failed. Satellites offline.");
+            }
         } finally {
             setIsHunting(false);
         }

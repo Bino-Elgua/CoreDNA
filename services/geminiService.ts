@@ -801,12 +801,70 @@ export const runCloserAgent = (lead: any, sender?: any) => {
   return geminiService.generate(provider, prompt);
 };
 
-export const generateAssetImage = (prompt: string) => {
-  const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
-  if (!settings.activeImageGen) {
-    throw new Error('No image generation provider configured. Please select an image provider in Settings and add its API key.');
+export const generateAssetImage = async (prompt: string, style?: string): Promise<string> => {
+  try {
+    // ALWAYS read fresh from localStorage to get latest settings
+    const settingsStr = localStorage.getItem('core_dna_settings');
+    if (!settingsStr) {
+      console.warn('[generateAssetImage] No settings found in localStorage');
+      return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
+    }
+    
+    const settings = JSON.parse(settingsStr);
+    const provider = settings.activeImageGen;
+    
+    console.log(`[generateAssetImage] Using provider: ${provider}`);
+    
+    // If no provider configured, return placeholder immediately
+    if (!provider) {
+      console.warn('[generateAssetImage] No image provider configured, using placeholder');
+      return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
+    }
+    
+    const config = settings.image?.[provider];
+    if (!config?.apiKey) {
+      console.warn(`[generateAssetImage] No API key for ${provider}, using placeholder`);
+      return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
+    }
+    
+    // Use Stability AI for image generation (most reliable)
+    if (provider === 'stability' || provider === 'sd3' || provider === 'fal_flux') {
+      try {
+        const fullPrompt = style ? `${prompt}. Style: ${style}` : prompt;
+        
+        const formData = new FormData();
+        formData.append('prompt', fullPrompt);
+        formData.append('output_format', 'jpeg');
+        
+        const response = await fetch('https://api.stability.ai/v2beta/stable-image/generate/core', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${config.apiKey}`
+          },
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Stability AI error: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        return url;
+      } catch (e) {
+        console.error('[generateAssetImage] Stability AI failed:', e);
+        console.warn('[generateAssetImage] Falling back to placeholder');
+        return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
+      }
+    }
+    
+    // Fallback: return placeholder for unsupported providers
+    console.warn(`[generateAssetImage] Provider ${provider} not fully implemented, using placeholder`);
+    return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
+  } catch (error: any) {
+    console.error('[generateAssetImage] Unexpected error:', error.message);
+    return `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(prompt.substring(0, 30))}`;
   }
-  return geminiService.generate(settings.activeImageGen, `Generate image: ${prompt}`).then(url => ({ url }));
 };
 
 /**
@@ -855,6 +913,7 @@ Return ONLY a valid JSON array of ${count} objects. No markdown, no explanations
     console.log(`[generateCampaignAssets] Provider: ${provider}`);
     
     const response = await geminiService.generate(provider, prompt);
+    console.log(`[generateCampaignAssets] Raw response received:`, response.substring(0, 200));
     
     // Parse JSON response
     let jsonStr = response.trim();
@@ -864,6 +923,7 @@ Return ONLY a valid JSON array of ${count} objects. No markdown, no explanations
     
     const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
+      console.error('[generateCampaignAssets] Response does not contain JSON array:', jsonStr.substring(0, 300));
       throw new Error('No JSON array found in response');
     }
     
@@ -873,6 +933,7 @@ Return ONLY a valid JSON array of ${count} objects. No markdown, no explanations
     return Array.isArray(assets) ? assets : [];
   } catch (e: any) {
     console.error('[generateCampaignAssets] Error:', e.message);
+    console.error('[generateCampaignAssets] Stack:', e.stack);
     throw e;
   }
 };
@@ -917,6 +978,7 @@ Return ONLY valid JSON object (not array). No markdown.`;
     console.log(`[runAgentHiveCampaign] Creating asset for ${channel} using ${provider}`);
     
     const response = await geminiService.generate(provider, prompt);
+    console.log(`[runAgentHiveCampaign] Raw response:`, response.substring(0, 200));
     
     let jsonStr = response.trim();
     if (jsonStr.startsWith('```')) {
@@ -925,6 +987,7 @@ Return ONLY valid JSON object (not array). No markdown.`;
     
     const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error(`[runAgentHiveCampaign] Response does not contain JSON object for ${channel}:`, jsonStr.substring(0, 300));
       throw new Error('No JSON found in response');
     }
     
@@ -938,6 +1001,7 @@ Return ONLY valid JSON object (not array). No markdown.`;
     return asset;
   } catch (e: any) {
     console.error(`[runAgentHiveCampaign] Error: ${e.message}`);
+    console.error(`[runAgentHiveCampaign] Stack:`, e.stack);
     if (statusCallback) statusCallback(`✗ Failed: ${e.message}`);
     throw e;
   }

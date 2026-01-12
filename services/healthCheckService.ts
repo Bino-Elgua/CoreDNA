@@ -511,16 +511,12 @@ const checkPerplexity = async (apiKey: string): Promise<HealthCheckResult> => {
 
 const checkStability = async (apiKey: string): Promise<HealthCheckResult> => {
     try {
-        const response = await fetch('https://api.stability.ai/v1/engines/stable-diffusion-3-large/text-to-image', {
-            method: 'POST',
+        // Test by checking account balance instead of generating
+        const response = await fetch('https://api.stability.ai/v1/user/balance', {
+            method: 'GET',
             headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                prompt: 'test',
-                steps: 10
-            })
+                'Authorization': `Bearer ${apiKey}`
+            }
         });
 
         if (response.status === 200) {
@@ -535,7 +531,8 @@ const checkStability = async (apiKey: string): Promise<HealthCheckResult> => {
         } else if (response.status === 401 || response.status === 403) {
             return { valid: false, status: 'invalid', message: 'Invalid or expired API key', timestamp: Date.now() };
         } else {
-            return { valid: false, status: 'error', message: `API error: ${response.status}`, timestamp: Date.now() };
+            const error = await response.text();
+            return { valid: false, status: 'error', message: `API error ${response.status}: ${error.substring(0, 50)}`, timestamp: Date.now() };
         }
     } catch (error) {
         return { valid: false, status: 'error', message: error instanceof Error ? error.message : 'Network error', timestamp: Date.now() };

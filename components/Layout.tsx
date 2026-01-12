@@ -39,7 +39,7 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, toggleDarkMode }) =
       <motion.aside 
         initial={false}
         animate={{ width: isCollapsed ? 80 : 280 }}
-        className="h-screen z-50 bg-white dark:bg-[#0a1120] border-r border-gray-200 dark:border-white/10 flex flex-col transition-colors duration-300 shadow-2xl flex-shrink-0 relative"
+        className="h-screen z-10 bg-white dark:bg-[#0a1120] border-r border-gray-200 dark:border-white/10 flex flex-col transition-colors duration-300 shadow-2xl flex-shrink-0 relative"
       >
         {/* Sidebar Header - Acts as Collapse Trigger */}
         <div 
@@ -74,8 +74,8 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, toggleDarkMode }) =
         </div>
 
         {/* Navigation */}
-        <div className="flex-grow px-3 py-4 flex flex-col justify-between overflow-hidden">
-          <nav className="space-y-1 overflow-y-auto custom-scrollbar flex-grow">
+        <div className="flex-grow px-3 py-4 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+          <nav className="space-y-1 flex-grow">
             {navItems.map((item) => (
               <Link 
                 key={item.path} 
@@ -96,17 +96,15 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, toggleDarkMode }) =
           </nav>
 
           {/* User Profile Footer */}
-          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/10 flex-shrink-0">
+          <div className="mt-2 pt-3 border-t border-gray-100 dark:border-white/10 flex-shrink-0 space-y-2">
              {!isCollapsed && (
-               <div className="px-3 mb-4">
-                 <button 
-                  onClick={toggleDarkMode}
-                  className="w-full flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 hover:text-dna-primary transition-colors border border-gray-100 dark:border-gray-700"
-                >
-                  <span className="text-xs font-bold uppercase tracking-widest">Theme</span>
-                  <span>{darkMode ? '☀️' : '🌙'}</span>
-                </button>
-               </div>
+               <button 
+                 onClick={toggleDarkMode}
+                 className="w-full flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 hover:text-dna-primary transition-colors border border-gray-100 dark:border-gray-700 text-xs"
+               >
+                 <span className="font-bold">Theme</span>
+                 <span>{darkMode ? '☀️' : '🌙'}</span>
+               </button>
              )}
             {user ? (
                <div 
@@ -125,7 +123,7 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, toggleDarkMode }) =
             ) : (
                <button 
                 onClick={login}
-                className="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold text-sm hover:opacity-90 transition-opacity"
+                className="w-full py-2 px-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-bold text-xs hover:opacity-90 transition-opacity truncate"
                >
                  {isCollapsed ? '👤' : 'Sign In'}
                </button>

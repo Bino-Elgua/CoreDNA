@@ -4,13 +4,65 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandDNA, CampaignAsset, SavedCampaign, UserProfile } from '../types';
 import { generateCampaignAssets, generateAssetImage, runAgentHiveCampaign } from '../services/geminiService';
+import { CampaignPRD } from '../services/campaignPRDService';
 import AssetCard from '../components/AssetCard';
 import AssetEditor from '../components/AssetEditor';
 import SavedCampaignsModal from '../components/SavedCampaignsModal';
+import CampaignPRDGenerator from '../components/CampaignPRDGenerator';
+import AutonomousCampaignMode from '../components/AutonomousCampaignMode';
+import SelfHealingPanel from '../components/SelfHealingPanel';
+import IntelligentCampaignDashboard from '../components/IntelligentCampaignDashboard';
+
+// Error boundary for this page
+class CampaignErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: string}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: '' };
+  }
+  
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  
+  componentDidCatch(error: Error) {
+    console.error('[CampaignsPage ErrorBoundary]', error);
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 bg-red-900/20 border border-red-500 rounded-xl">
+          <h3 className="text-red-400 font-bold mb-2">Page Error</h3>
+          <p className="text-red-300 text-sm">{this.state.error}</p>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-red-600 text-white rounded">Reload</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const CampaignsPage: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
+  const baseNavigate = useNavigate();
+  
+  // Intercept navigate calls to see what's triggering them
+  const navigate = (target: any) => {
+    console.warn('[CampaignsPage] Navigation attempt:', target);
+    console.trace('[CampaignsPage] Navigation trace');
+    baseNavigate(target);
+  };
+  
+  // Prevent accidental navigation
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      console.log('[CampaignsPage] Popstate detected:', e);
+      e.preventDefault();
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   
   const [selectedDNA, setSelectedDNA] = useState<BrandDNA | null>(null);
   const [goal, setGoal] = useState('');
@@ -25,18 +77,35 @@ const CampaignsPage: React.FC = () => {
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [focusedAsset, setFocusedAsset] = useState<CampaignAsset | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | undefined>(undefined);
+  const [debugError, setDebugError] = useState<string>('');
+  const [showPRDGenerator, setShowPRDGenerator] = useState(false);
+  const [selectedPRD, setSelectedPRD] = useState<CampaignPRD | null>(null);
+  const [showAutonomousMode, setShowAutonomousMode] = useState(false);
+  const [showIntelligentDashboard, setShowIntelligentDashboard] = useState(false);
 
   useEffect(() => {
+    // First try location.state (from navigation)
     if (location.state?.dna) {
         setSelectedDNA(location.state.dna);
         if (location.state.prefillGoal) setGoal(location.state.prefillGoal);
+        // Save to session storage so it persists on page refresh
+        sessionStorage.setItem('campaign_dna', JSON.stringify(location.state.dna));
     } else {
-        const stored = localStorage.getItem('core_dna_profiles');
-        if (stored) {
+        // Try to restore from session storage first (survives page refresh)
+        const sessionDNA = sessionStorage.getItem('campaign_dna');
+        if (sessionDNA) {
             try {
-                const profiles = JSON.parse(stored);
-                if (profiles.length > 0) setSelectedDNA(profiles[0]);
+                setSelectedDNA(JSON.parse(sessionDNA));
             } catch (e) { console.error(e); }
+        } else {
+            // Fall back to first stored profile
+            const stored = localStorage.getItem('core_dna_profiles');
+            if (stored) {
+                try {
+                    const profiles = JSON.parse(stored);
+                    if (profiles.length > 0) setSelectedDNA(profiles[0]);
+                } catch (e) { console.error(e); }
+            }
         }
     }
   }, [location.state]);
@@ -66,6 +135,15 @@ const CampaignsPage: React.FC = () => {
     setLoadingMsg('Initializing generation...');
     setHiveStatus([]);
     setAssets([]);
+    console.log('[CampaignsPage] Starting campaign generation for:', selectedDNA.name);
+    
+    // Prevent page unload during generation
+    const unloadHandler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', unloadHandler);
 
     try {
         if (hiveMode) {
@@ -95,20 +173,47 @@ const CampaignsPage: React.FC = () => {
                                  setAssets(prev => prev.map(a => a.id === asset.id ? { ...a, isGeneratingImage: false } : a));
                              }
                         }
-                    }
-                }
-            } catch (assetErr: any) {
-                console.error('[CampaignsPage] Asset generation error:', assetErr.message);
-                throw assetErr;
-            }
-        }
-    } catch (e) { 
+                        }
+                        }
+                        } catch (assetErr: any) {
+                        console.error('[CampaignsPage] Asset generation error:', assetErr.message);
+                        throw assetErr;
+                        }
+                        }
+                        
+                        // Auto-save campaign after successful generation
+                        console.log('[CampaignsPage] Auto-saving generated campaign...');
+                        if (assets.length > 0) {
+                        const newSavedCampaign: SavedCampaign = {
+                        id: `camp-${Date.now()}`,
+                        dna: selectedDNA!,
+                        goal: goal,
+                        assets: assets,
+                        timestamp: Date.now()
+                        };
+                        const updatedCampaigns = [newSavedCampaign, ...savedCampaigns];
+                        localStorage.setItem('core_dna_saved_campaigns', JSON.stringify(updatedCampaigns));
+                        setSavedCampaigns(updatedCampaigns);
+                        console.log('[CampaignsPage] Campaign auto-saved:', newSavedCampaign.id);
+                        }
+                        } catch (e) {
         const errorMsg = e instanceof Error ? e.message : String(e);
+        const stack = e instanceof Error ? e.stack : '';
         console.error("Campaign generation failed:", errorMsg, e);
-        alert(`Failed to generate campaign: ${errorMsg}`);
+        const fullError = `ERROR: ${errorMsg}\n\nStack: ${stack}`;
+        setDebugError(fullError);
+        setAssets([]); // Clear any partial data
+        if (errorMsg.includes('No LLM provider')) {
+            alert('❌ No API Keys Configured\n\nGo to Settings → API Keys and add at least one LLM provider (OpenAI, Claude, Gemini, etc.) with its API key.');
+        } else {
+            alert(`❌ Campaign generation failed:\n\n${errorMsg}\n\nCheck Settings for API keys.`);
+        }
     }
-    finally { setLoading(false); }
-  };
+    finally { 
+      setLoading(false);
+      window.removeEventListener('beforeunload', unloadHandler);
+    }
+    };
 
   const handleRegenerateImage = async (assetId: string, prompt: string) => {
     setAssets(prev => prev.map(a => a.id === assetId ? { ...a, isGeneratingImage: true } : a));
@@ -119,37 +224,45 @@ const CampaignsPage: React.FC = () => {
   };
 
   const handleSaveToSchedule = () => {
-      if (assets.length === 0) return;
+      if (assets.length === 0) {
+          alert("No assets to save. Generate a campaign first.");
+          return;
+      }
       
-      // Push to central queue in localStorage for SchedulerPage to pick up
-      const storedQueue = localStorage.getItem('core_dna_pending_queue');
-      const currentQueue = storedQueue ? JSON.parse(storedQueue) : [];
-      
-      // Mark assets with brand info for the scheduler filter
-      const taggedAssets = assets.map(a => ({ 
-          ...a, 
-          brandId: selectedDNA?.id, 
-          brandName: selectedDNA?.name,
-          campaignGoal: goal
-      }));
-      
-      const newQueue = [...currentQueue, ...taggedAssets];
-      localStorage.setItem('core_dna_pending_queue', JSON.stringify(newQueue));
-      
-      // Also save as a permanent campaign
-      const newSavedCampaign: SavedCampaign = {
-          id: `camp-${Date.now()}`,
-          dna: selectedDNA!,
-          goal: goal,
-          assets: assets,
-          timestamp: Date.now()
-      };
-      const updatedCampaigns = [newSavedCampaign, ...savedCampaigns];
-      localStorage.setItem('core_dna_saved_campaigns', JSON.stringify(updatedCampaigns));
-      setSavedCampaigns(updatedCampaigns);
+      try {
+          // Push to central queue in localStorage for SchedulerPage to pick up
+          const storedQueue = localStorage.getItem('core_dna_pending_queue');
+          const currentQueue = storedQueue ? JSON.parse(storedQueue) : [];
+          
+          // Mark assets with brand info for the scheduler filter
+          const taggedAssets = assets.map(a => ({ 
+              ...a, 
+              brandId: selectedDNA?.id, 
+              brandName: selectedDNA?.name,
+              campaignGoal: goal
+          }));
+          
+          const newQueue = [...currentQueue, ...taggedAssets];
+          localStorage.setItem('core_dna_pending_queue', JSON.stringify(newQueue));
+          
+          // Also save as a permanent campaign
+          const newSavedCampaign: SavedCampaign = {
+              id: `camp-${Date.now()}`,
+              dna: selectedDNA!,
+              goal: goal,
+              assets: assets,
+              timestamp: Date.now()
+          };
+          const updatedCampaigns = [newSavedCampaign, ...savedCampaigns];
+          localStorage.setItem('core_dna_saved_campaigns', JSON.stringify(updatedCampaigns));
+          setSavedCampaigns(updatedCampaigns);
 
-      alert("Campaign assets have been ported to the Neural Scheduler queue!");
-      navigate('/scheduler');
+          alert("Campaign saved! You can now navigate to Scheduler to schedule posts.");
+          // Don't auto-navigate - let user decide when to go
+      } catch (e) {
+          console.error("Save error:", e);
+          alert("Failed to save campaign: " + (e instanceof Error ? e.message : String(e)));
+      }
   };
 
   const handleSaveEditorChanges = (updatedAsset: CampaignAsset) => {
@@ -157,8 +270,19 @@ const CampaignsPage: React.FC = () => {
       setFocusedAsset(null);
   };
 
+  // Log page state
+  console.log('[CampaignsPage] Rendering - assets:', assets.length, 'loading:', loading, 'selectedDNA:', selectedDNA?.name);
+
   return (
+    <CampaignErrorBoundary>
     <div className="container mx-auto px-4 py-8 pb-20">
+        {debugError && (
+            <div className="mb-6 p-4 bg-red-900/20 border border-red-500 rounded-lg">
+                <h3 className="text-red-400 font-bold mb-2">🔴 Debug Error</h3>
+                <pre className="text-red-300 text-xs whitespace-pre-wrap break-words">{debugError}</pre>
+                <button onClick={() => setDebugError('')} className="mt-2 text-xs bg-red-600 px-3 py-1 rounded text-white">Dismiss</button>
+            </div>
+        )}
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-gray-500 hover:text-dna-primary mb-6 transition-colors font-medium group">
             <svg className="w-4 h-4 transition-transform group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
             Back
@@ -170,13 +294,28 @@ const CampaignsPage: React.FC = () => {
                     <h1 className="text-3xl font-display font-black uppercase tracking-tight text-white">Campaign Suite</h1>
                     <p className="text-gray-400 text-sm">Targeting <span className="text-dna-primary font-bold">{selectedDNA?.name}</span>'s core market segments.</p>
                 </div>
-                <div className="flex gap-4">
-                    <button onClick={() => setIsSavedModalOpen(true)} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-gray-300 border border-white/5 transition-all">
-                        Archive ({savedCampaigns.length})
+                <div className="flex flex-wrap gap-3">
+                    <button onClick={() => setShowPRDGenerator(true)} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-300 border border-white/5 transition-all whitespace-nowrap">
+                        📋 PRD
                     </button>
+                    <button onClick={() => setIsSavedModalOpen(true)} className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-300 border border-white/5 transition-all whitespace-nowrap">
+                        📦 ({savedCampaigns.length})
+                    </button>
+                    {selectedPRD && (
+                        <button onClick={() => setShowAutonomousMode(true)} className="px-4 py-2 bg-gradient-to-r from-dna-primary to-dna-secondary text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg whitespace-nowrap">
+                            🤖 Auto
+                        </button>
+                    )}
+                    {/* Disabled for stability
                     {assets.length > 0 && (
-                        <button onClick={handleSaveToSchedule} className="px-6 py-2 bg-dna-secondary text-black rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-dna-secondary/20">
-                            Port to Schedule
+                        <button onClick={() => setShowIntelligentDashboard(true)} className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg whitespace-nowrap">
+                            🧠 Intelligence
+                        </button>
+                    )}
+                    */}
+                    {assets.length > 0 && (
+                        <button onClick={handleSaveToSchedule} className="px-4 py-2 bg-dna-secondary text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-dna-secondary/20 whitespace-nowrap">
+                            📅 Schedule
                         </button>
                     )}
                 </div>
@@ -239,19 +378,44 @@ const CampaignsPage: React.FC = () => {
         </AnimatePresence>
 
         {assets.length > 0 && !loading && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                {assets.map(asset => (
-                    <AssetCard 
-                        key={asset.id} 
-                        asset={asset}
-                        onRegenerateImage={handleRegenerateImage}
-                        onUpdateContent={(id, content) => setAssets(prev => prev.map(a => a.id === id ? { ...a, content } : a))}
-                        onUpdateSchedule={(id, date) => setAssets(prev => prev.map(a => a.id === id ? { ...a, scheduledAt: date } : a))}
-                        onVideoReady={(id, url) => setAssets(prev => prev.map(a => a.id === id ? { ...a, videoUrl: url } : a))}
-                        onOpenEditor={(a) => setFocusedAsset(a)}
-                        user={userProfile}
-                    />
-                ))}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+                <div className="p-6 bg-green-900/20 border border-green-500 rounded-xl">
+                    <h3 className="text-green-400 font-bold">✅ Campaign Generated!</h3>
+                    <p className="text-green-300 text-sm mt-2">Generated {assets.length} campaign assets</p>
+                    <p className="text-green-200 text-xs mt-1">Mistral LLM + Stability AI Images</p>
+                </div>
+                
+                {selectedDNA && (
+                    <div className="p-4 bg-blue-900/20 border border-blue-500 rounded-xl">
+                        <p className="text-blue-300 text-sm">ℹ️ Self-Healing Panel disabled for stability. Features coming soon.</p>
+                    </div>
+                )}
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                {assets.map((asset, idx) => {
+                    try {
+                        return (
+                            <AssetCard 
+                                key={asset.id} 
+                                asset={asset}
+                                onRegenerateImage={handleRegenerateImage}
+                                onUpdateContent={(id, content) => setAssets(prev => prev.map(a => a.id === id ? { ...a, content } : a))}
+                                onUpdateSchedule={(id, date) => setAssets(prev => prev.map(a => a.id === id ? { ...a, scheduledAt: date } : a))}
+                                onVideoReady={(id, url) => setAssets(prev => prev.map(a => a.id === id ? { ...a, videoUrl: url } : a))}
+                                onOpenEditor={(a) => setFocusedAsset(a)}
+                                user={userProfile}
+                            />
+                        );
+                    } catch (e) {
+                        console.error(`[CampaignsPage] Failed to render asset ${idx}:`, e);
+                        return (
+                            <div key={asset.id} className="p-4 bg-red-900/20 border border-red-500 rounded-lg">
+                                <p className="text-red-300">Failed to render asset: {asset.title || `Asset ${idx}`}</p>
+                            </div>
+                        );
+                    }
+                })}
+                </div>
             </motion.div>
         )}
 
@@ -266,7 +430,45 @@ const CampaignsPage: React.FC = () => {
         )}
         
         <SavedCampaignsModal isOpen={isSavedModalOpen} onClose={() => setIsSavedModalOpen(false)} savedCampaigns={savedCampaigns} onLoad={(c) => { setAssets(c.assets); setGoal(c.goal); setIsSavedModalOpen(false); }} onDelete={(id) => setSavedCampaigns(prev => prev.filter(c => c.id !== id))} />
+        
+        <AnimatePresence>
+            {showPRDGenerator && selectedDNA && (
+                <CampaignPRDGenerator
+                    brandName={selectedDNA.name}
+                    onPRDGenerated={(prd) => {
+                        setSelectedPRD(prd);
+                        setShowPRDGenerator(false);
+                        setShowAutonomousMode(true);
+                    }}
+                    onClose={() => setShowPRDGenerator(false)}
+                />
+            )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+            {showAutonomousMode && selectedPRD && selectedDNA && (
+                <AutonomousCampaignMode
+                    dna={selectedDNA}
+                    prd={selectedPRD}
+                    isOpen={showAutonomousMode}
+                    onClose={() => setShowAutonomousMode(false)}
+                />
+            )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+            {showIntelligentDashboard && selectedPRD && selectedDNA && (
+                <IntelligentCampaignDashboard
+                    dna={selectedDNA}
+                    prd={selectedPRD}
+                    assets={assets}
+                    isOpen={showIntelligentDashboard}
+                    onClose={() => setShowIntelligentDashboard(false)}
+                />
+            )}
+        </AnimatePresence>
     </div>
+    </CampaignErrorBoundary>
   );
 };
 

@@ -1,9 +1,90 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { sonicChat, SonicMessage } from '../services/sonicCoPilot';
+
+interface Message {
+  id: string;
+  type: 'user' | 'bot';
+  text: string;
+}
 
 export const SonicOrb: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    { id: '1', type: 'bot', text: 'Hey! I\'m Sonic Co-Pilot. I can help you navigate CoreDNA, explain features, or answer questions. What would you like to do?' }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<SonicMessage[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    // Add user message
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      text: input
+    };
+    setMessages(prev => [...prev, userMsg]);
+    
+    // Update conversation history
+    const newHistory: SonicMessage[] = [
+      ...conversationHistory,
+      { role: 'user', content: input }
+    ];
+    setConversationHistory(newHistory);
+    setInput('');
+    setLoading(true);
+
+    try {
+      // Get LLM response with context
+      const { response, action } = await sonicChat(
+        input,
+        conversationHistory,
+        user?.tier || 'free'
+      );
+      
+      const botMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        text: response
+      };
+      setMessages(prev => [...prev, botMsg]);
+      
+      // Update conversation history with bot response
+      setConversationHistory(prev => [
+        ...prev,
+        { role: 'assistant', content: response }
+      ]);
+      
+      // Execute action if present
+      if (action?.type === 'navigate' && action.target) {
+        setTimeout(() => {
+          navigate(action.target!);
+          setIsOpen(false);
+        }, 500);
+      }
+    } catch (e: any) {
+      const errorMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        text: `Error: ${e.message || 'Failed to process request'}`
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Only show for agency tier (demo user)
   if (!user || user.tier !== 'agency') {
@@ -38,11 +119,26 @@ export const SonicOrb: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-800 flex items-center justify-center">
-            <div className="text-center text-gray-400">
-              <p className="text-sm">Try typing a command:</p>
-              <p className="text-xs mt-2">"help" or "show stats"</p>
-            </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-800">
+            {messages.map(msg => (
+              <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-xs px-4 py-2 rounded-lg text-sm ${
+                  msg.type === 'user' 
+                    ? 'bg-purple-600 text-white' 
+                    : 'bg-gray-700 text-gray-100'
+                }`}>
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-700 text-gray-100 px-4 py-2 rounded-lg text-sm">
+                  <span className="animate-pulse">Sonic thinking...</span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Input Area */}
@@ -50,10 +146,18 @@ export const SonicOrb: React.FC = () => {
             <div className="flex gap-2">
               <input
                 type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Type command..."
-                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-400 focus:outline-none focus:border-purple-500"
+                disabled={loading}
+                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-400 focus:outline-none focus:border-purple-500 disabled:opacity-50"
               />
-              <button className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-4 py-2 text-sm font-medium">
+              <button 
+                onClick={handleSend}
+                disabled={loading || !input.trim()}
+                className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+              >
                 Send
               </button>
             </div>
