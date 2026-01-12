@@ -6,7 +6,8 @@
 
 import { CampaignPRD, CampaignUserStory, markStoryComplete, getPRDProgress } from './campaignPRDService';
 import { sonicChat } from './sonicCoPilot';
-import { generateCampaignAssets, generateAssetImage } from './geminiService';
+import { generateCampaignAssets } from './geminiService';
+import { generateImage, generateVideo } from './mediaGenerationService';
 import { CampaignAsset, BrandDNA } from '../types';
 
 export interface AutoExecutionProgress {
@@ -210,20 +211,39 @@ Return ONLY valid JSON array with 2 objects, no markdown.`;
 
     const response = await generateCampaignAssets(dna, prompt, [story.channel || 'Instagram'], 2);
 
-    // Generate images for each asset
+    // Generate images and videos for each asset
     const assetsWithImages = await Promise.all(
       response.map(async (asset: any, idx: number) => {
         let imageUrl = '';
+        let videoUrl = '';
+        
         try {
           // Generate image from prompt if available
           if (asset.imagePrompt) {
             console.log(`[generateStoryAssets] Generating image ${idx + 1}/2 for "${asset.title}"`);
-            imageUrl = await generateAssetImage(asset.imagePrompt, dna.visualStyle?.description || 'Modern');
+            const imageResult = await generateImage(asset.imagePrompt, { style: dna.visualStyle?.description || 'Modern' });
+            imageUrl = imageResult.url;
             console.log(`[generateStoryAssets] ✓ Image generated for ${asset.title}`);
           }
         } catch (imgError: any) {
           console.warn(`[generateStoryAssets] Image generation failed for asset ${idx}: ${imgError.message}`);
           // Continue without image - don't fail the entire story
+        }
+        
+        // Generate video for video-type assets if video provider available
+        try {
+          if (story.type === 'video' && asset.title) {
+            console.log(`[generateStoryAssets] Generating video for "${asset.title}"`);
+            const videoPrompt = `Professional marketing video: ${asset.title}. ${asset.copy || ''}`;
+            const videoResult = await generateVideo(videoPrompt, { duration: 6 });
+            if (videoResult) {
+              videoUrl = videoResult.url;
+              console.log(`[generateStoryAssets] ✓ Video generated for ${asset.title}`);
+            }
+          }
+        } catch (videoError: any) {
+          console.warn(`[generateStoryAssets] Video generation failed for asset ${idx}: ${videoError.message}`);
+          // Continue without video - optional enhancement
         }
 
         return {
@@ -235,8 +255,9 @@ Return ONLY valid JSON array with 2 objects, no markdown.`;
           cta: asset.cta,
           imagePrompt: asset.imagePrompt,
           imageUrl,
+          videoUrl,
           isGeneratingImage: false,
-          videoUrl: '',
+          isGeneratingVideo: false,
           scheduledAt: null,
           notes: `Generated from story: ${story.id}`
         };

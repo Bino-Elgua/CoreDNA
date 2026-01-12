@@ -5,6 +5,7 @@
  */
 
 import { geminiService } from './geminiService';
+import { generateImage } from './mediaGenerationService';
 
 const getActiveLLMProvider = () => {
   const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
@@ -66,6 +67,31 @@ export interface PRDGenerationRequest {
   timeline: string;
   budget?: string;
   brandContext?: string;
+}
+
+/**
+ * Generate campaign assets with real images
+ */
+async function generateAssetImages(userStories: CampaignUserStory[], onProgress?: (msg: string) => void): Promise<Map<string, string>> {
+  const imageMap = new Map<string, string>();
+  
+  for (const story of userStories) {
+    if ((story.type === 'design' || story.type === 'social') && story.title) {
+      try {
+        if (onProgress) onProgress(`Generating image for: ${story.title}...`);
+        
+        const prompt = `Professional marketing image for: ${story.title}. ${story.description || ''} Style: modern, professional, clean.`;
+        const result = await generateImage(prompt, { style: 'professional marketing' });
+        
+        imageMap.set(story.id, result.url);
+        console.log(`[generateAssetImages] ✓ Generated image for ${story.id}`);
+      } catch (error: any) {
+        console.warn(`[generateAssetImages] Failed for ${story.id}:`, error.message);
+      }
+    }
+  }
+  
+  return imageMap;
 }
 
 /**
@@ -251,6 +277,17 @@ Prioritize stories 1 being highest priority.`;
     };
     
     if (onProgress) onProgress(`✓ PRD generated with ${prd.userStories.length} user stories`);
+    
+    // Generate images for design/social stories
+    if (onProgress) onProgress('Generating campaign asset images...');
+    const imageMap = await generateAssetImages(prd.userStories, onProgress);
+    
+    // Attach images to user stories (for UI display)
+    prd.userStories.forEach(story => {
+      if (imageMap.has(story.id)) {
+        (story as any).imageUrl = imageMap.get(story.id);
+      }
+    });
     
     return prd;
   } catch (error: any) {

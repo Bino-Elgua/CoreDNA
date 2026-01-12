@@ -6,7 +6,7 @@
 
 import { CampaignAsset, BrandDNA } from '../types';
 import { sonicChat } from './sonicCoPilot';
-import { generateAssetImage } from './geminiService';
+import { generateImage } from './mediaGenerationService';
 
 export interface RefinementIteration {
   iterationNum: number;
@@ -103,6 +103,17 @@ export async function refineAssetIteratively(
   let currentAsset = { ...asset };
   let previousScore = 0;
 
+  // Generate initial image if imagePrompt exists
+  if (currentAsset.imagePrompt && !currentAsset.imageUrl) {
+    try {
+      if (onProgress) onProgress('Generating initial asset image...');
+      const imageResult = await generateImage(currentAsset.imagePrompt, { style: dna.visualStyle?.description });
+      currentAsset.imageUrl = imageResult.url;
+    } catch (error: any) {
+      console.warn('[refineAssetIteratively] Initial image generation failed:', error.message);
+    }
+  }
+
   for (let i = 1; i <= maxIterations; i++) {
     if (onProgress) onProgress(`Refinement iteration ${i}/${maxIterations}...`);
 
@@ -170,6 +181,18 @@ Response ONLY with JSON:
         content: feedback.newContent || currentAsset.content,
         cta: feedback.newCta || currentAsset.cta
       };
+      
+      // Regenerate image if prompt was updated
+      if (feedback.newImagePrompt && feedback.newImagePrompt !== currentAsset.imagePrompt) {
+        try {
+          if (onProgress) onProgress(`Regenerating image based on iteration ${i} feedback...`);
+          const imageResult = await generateImage(feedback.newImagePrompt, { style: dna.visualStyle?.description });
+          currentAsset.imageUrl = imageResult.url;
+          currentAsset.imagePrompt = feedback.newImagePrompt;
+        } catch (error: any) {
+          console.warn(`[refineAssetIteratively] Image regeneration failed:`, error.message);
+        }
+      }
 
       iterations.push({
         iterationNum: i,

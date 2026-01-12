@@ -6,6 +6,7 @@
 
 import { CampaignUserStory, CampaignPRD } from './campaignPRDService';
 import { sonicChat } from './sonicCoPilot';
+import { generateImage, generateVideo } from './mediaGenerationService';
 
 export interface StoryDependency {
   storyId: string;
@@ -90,6 +91,37 @@ Respond ONLY with JSON:
 /**
  * Build optimal execution sequence
  */
+/**
+ * Generate media for a story based on its type
+ */
+async function generateStoryMedia(story: CampaignUserStory, onProgress?: (msg: string) => void): Promise<{ imageUrl?: string; videoUrl?: string }> {
+  const result: { imageUrl?: string; videoUrl?: string } = {};
+  
+  try {
+    if (story.type === 'social' || story.type === 'design') {
+      if (onProgress) onProgress(`Generating image for ${story.title}...`);
+      
+      const imagePrompt = `Create a professional marketing image for: ${story.title}. Description: ${story.description}. Style: modern and engaging.`;
+      const imageResult = await generateImage(imagePrompt, { style: 'professional marketing' });
+      result.imageUrl = imageResult.url;
+    }
+    
+    if (story.type === 'video') {
+      if (onProgress) onProgress(`Generating video for ${story.title}...`);
+      
+      const videoPrompt = `Create a professional marketing video for: ${story.title}. Description: ${story.description}`;
+      const videoResult = await generateVideo(videoPrompt, { duration: 6 });
+      if (videoResult) {
+        result.videoUrl = videoResult.url;
+      }
+    }
+  } catch (error: any) {
+    console.warn(`[generateStoryMedia] Media generation failed for ${story.id}:`, error.message);
+  }
+  
+  return result;
+}
+
 export async function buildOptimalSequence(
   prd: CampaignPRD,
   onProgress?: (msg: string) => void
