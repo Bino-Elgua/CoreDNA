@@ -75,22 +75,31 @@ export interface PRDGenerationRequest {
 async function generateAssetImages(userStories: CampaignUserStory[], onProgress?: (msg: string) => void): Promise<Map<string, string>> {
   const imageMap = new Map<string, string>();
   
+  console.log(`[generateAssetImages] Starting image generation for ${userStories.length} stories`);
+  
   for (const story of userStories) {
     if ((story.type === 'design' || story.type === 'social') && story.title) {
       try {
-        if (onProgress) onProgress(`Generating image for: ${story.title}...`);
+        const msg = `Generating image for: ${story.title}...`;
+        console.log(`[generateAssetImages] ${msg}`);
+        if (onProgress) onProgress(msg);
         
         const prompt = `Professional marketing image for: ${story.title}. ${story.description || ''} Style: modern, professional, clean.`;
+        console.log(`[generateAssetImages] Image prompt: ${prompt.substring(0, 100)}`);
+        
         const result = await generateImage(prompt, { style: 'professional marketing' });
         
         imageMap.set(story.id, result.url);
-        console.log(`[generateAssetImages] ✓ Generated image for ${story.id}`);
+        console.log(`[generateAssetImages] ✓ Generated image for ${story.id}: ${result.url.substring(0, 80)}`);
       } catch (error: any) {
-        console.warn(`[generateAssetImages] Failed for ${story.id}:`, error.message);
+        console.error(`[generateAssetImages] Failed for ${story.id}:`, error.message, error.stack);
       }
+    } else {
+      console.log(`[generateAssetImages] Skipping ${story.id} - type: ${story.type}`);
     }
   }
   
+  console.log(`[generateAssetImages] Completed. Generated ${imageMap.size} images`);
   return imageMap;
 }
 

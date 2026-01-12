@@ -31,26 +31,46 @@ interface VideoGenerationOptions {
  * Get active image provider from settings
  */
 function getActiveImageProvider(): { provider: string; apiKey: string } {
-  const settings = JSON.parse(localStorage.getItem('core_dna_settings') || '{}');
-  
-  // Check activeImageGen first
-  if (settings.activeImageGen && settings.image?.[settings.activeImageGen]?.apiKey?.trim()) {
-    return {
-      provider: settings.activeImageGen,
-      apiKey: settings.image[settings.activeImageGen].apiKey.trim()
-    };
-  }
-  
-  // Fall back to first available image provider
-  if (settings.image) {
-    for (const [key, config]: any of Object.entries(settings.image)) {
-      if (config.apiKey?.trim()) {
-        return { provider: key, apiKey: config.apiKey.trim() };
+  try {
+    const settingsStr = localStorage.getItem('core_dna_settings');
+    if (!settingsStr) {
+      console.error('[getActiveImageProvider] No settings found in localStorage');
+      throw new Error('Settings not found in localStorage');
+    }
+    
+    const settings = JSON.parse(settingsStr);
+    console.log('[getActiveImageProvider] Settings loaded. activeImageGen:', settings.activeImageGen);
+    console.log('[getActiveImageProvider] Available image providers:', settings.image ? Object.keys(settings.image) : 'none');
+    
+    // Check activeImageGen first
+    if (settings.activeImageGen && settings.image?.[settings.activeImageGen]?.apiKey?.trim()) {
+      const apiKey = settings.image[settings.activeImageGen].apiKey.trim();
+      console.log(`[getActiveImageProvider] ✓ Using configured activeImageGen: ${settings.activeImageGen}`);
+      return {
+        provider: settings.activeImageGen,
+        apiKey
+      };
+    }
+    
+    console.log('[getActiveImageProvider] activeImageGen not configured, searching for available providers');
+    
+    // Fall back to first available image provider
+    if (settings.image) {
+      for (const [key, config]: [string, any] of Object.entries(settings.image)) {
+        const apiKey = (config as any).apiKey?.trim?.();
+        if (apiKey) {
+          console.log(`[getActiveImageProvider] ✓ Found available provider: ${key}`);
+          return { provider: key, apiKey };
+        }
       }
     }
+    
+    console.error('[getActiveImageProvider] No image providers configured');
+    throw new Error('No image generation provider configured. Go to Settings → API Keys to add one.');
+  } catch (error: any) {
+    console.error('[getActiveImageProvider] Error:', error.message);
+    throw error;
   }
-  
-  throw new Error('No image generation provider configured');
 }
 
 /**
@@ -88,53 +108,85 @@ export async function generateImage(
   options: ImageGenerationOptions = {}
 ): Promise<MediaGenerationResult> {
   try {
-    const { provider, apiKey } = getActiveImageProvider();
+    console.log('[generateImage] Starting image generation for:', prompt.substring(0, 50));
+    
+    const providerInfo = getActiveImageProvider();
+    const { provider, apiKey } = providerInfo;
     const style = options.style || '';
     const fullPrompt = style ? `${prompt}. Style: ${style}` : prompt;
     
-    console.log(`[generateImage] Using provider: ${provider}`);
+    console.log(`[generateImage] Using provider: ${provider}, API key length: ${apiKey.length}`);
+    
+    let result: MediaGenerationResult;
     
     switch (provider) {
       case 'dalle':
       case 'openai_dalle_next':
-        return await generateDALLE3(apiKey, fullPrompt, options);
+        console.log('[generateImage] Calling DALL-E 3');
+        result = await generateDALLE3(apiKey, fullPrompt, options);
+        break;
       
       case 'stability':
       case 'sd3':
-        return await generateStabilityAI(apiKey, fullPrompt, options);
+        console.log('[generateImage] Calling Stability AI');
+        result = await generateStabilityAI(apiKey, fullPrompt, options);
+        break;
       
       case 'fal_flux':
       case 'black_forest_labs':
-        return await generateFluxAI(apiKey, fullPrompt, options);
+        console.log('[generateImage] Calling Flux AI');
+        result = await generateFluxAI(apiKey, fullPrompt, options);
+        break;
       
       case 'ideogram':
-        return await generateIdeogram(apiKey, fullPrompt, options);
+        console.log('[generateImage] Calling Ideogram');
+        result = await generateIdeogram(apiKey, fullPrompt, options);
+        break;
       
       case 'google':
       case 'imagen':
-        return await generateImagenAI(apiKey, fullPrompt, options);
+        console.log('[generateImage] Calling Imagen');
+        result = await generateImagenAI(apiKey, fullPrompt, options);
+        break;
       
       case 'replicate':
-        return await generateReplicate(apiKey, fullPrompt, options);
+        console.log('[generateImage] Calling Replicate');
+        result = await generateReplicate(apiKey, fullPrompt, options);
+        break;
       
       case 'runware':
-        return await generateRunware(apiKey, fullPrompt, options);
+        console.log('[generateImage] Calling Runware');
+        result = await generateRunware(apiKey, fullPrompt, options);
+        break;
       
       case 'leonardo':
-        return await generateLeonardo(apiKey, fullPrompt, options);
+        console.log('[generateImage] Calling Leonardo');
+        result = await generateLeonardo(apiKey, fullPrompt, options);
+        break;
       
       default:
-        console.warn(`[generateImage] Provider ${provider} not yet implemented, trying generic API`);
-        return await generateStabilityAI(apiKey, fullPrompt, options).catch(() => ({
-          url: generatePlaceholder(prompt),
-          provider: 'placeholder',
-          generatedAt: Date.now()
-        }));
+        console.warn(`[generateImage] Provider ${provider} not yet implemented, trying Stability AI fallback`);
+        try {
+          result = await generateStabilityAI(apiKey, fullPrompt, options);
+        } catch (fallbackError) {
+          console.warn('[generateImage] Fallback also failed, using placeholder');
+          result = {
+            url: generatePlaceholder(prompt),
+            provider: 'placeholder',
+            generatedAt: Date.now()
+          };
+        }
     }
+    
+    console.log(`[generateImage] ✓ Success with ${result.provider}: ${result.url.substring(0, 80)}`);
+    return result;
+    
   } catch (error: any) {
-    console.error('[generateImage] Error:', error.message);
+    console.error('[generateImage] Fatal error:', error.message, error.stack);
+    const placeholder = generatePlaceholder(prompt);
+    console.log('[generateImage] Returning placeholder:', placeholder);
     return {
-      url: generatePlaceholder(prompt),
+      url: placeholder,
       provider: 'placeholder',
       generatedAt: Date.now()
     };
