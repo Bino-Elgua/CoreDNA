@@ -110,7 +110,20 @@ export async function generateImage(
   try {
     console.log('[generateImage] Starting image generation for:', prompt.substring(0, 50));
     
-    const providerInfo = getActiveImageProvider();
+    let providerInfo: { provider: string; apiKey: string };
+    try {
+      providerInfo = getActiveImageProvider();
+    } catch (providerError: any) {
+      console.error('[generateImage] Failed to get active provider:', providerError.message);
+      console.log('[generateImage] Falling back to placeholder');
+      return {
+        url: generatePlaceholder(prompt),
+        provider: 'placeholder',
+        generatedAt: Date.now(),
+        metadata: { reason: 'No provider configured', error: providerError.message }
+      };
+    }
+    
     const { provider, apiKey } = providerInfo;
     const style = options.style || '';
     const fullPrompt = style ? `${prompt}. Style: ${style}` : prompt;
