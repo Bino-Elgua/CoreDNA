@@ -341,7 +341,20 @@ export class GeminiService {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(`Gemini API error: ${error.error?.message || response.statusText}`);
+        const message = error.error?.message || response.statusText;
+        
+        // Detect quota/rate limit errors
+        if (message.includes('quota') || message.includes('Quota exceeded')) {
+          console.error('[callGemini] QUOTA EXCEEDED - Gemini free tier limit reached');
+          console.error('[callGemini] Suggestion: Use a different LLM provider (Mistral, Groq, Claude, etc.)');
+          throw new Error(`Gemini quota exceeded. Switch to Mistral or Groq in Settings → API Keys → Language Models`);
+        }
+        
+        if (message.includes('429') || message.includes('rate limit')) {
+          throw new Error(`Gemini rate limited. Please retry in a moment or use Mistral/Groq.`);
+        }
+        
+        throw new Error(`Gemini API error: ${message}`);
       }
 
       const data = await response.json();

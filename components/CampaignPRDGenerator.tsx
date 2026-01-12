@@ -66,7 +66,18 @@ const CampaignPRDGenerator: React.FC<CampaignPRDGeneratorProps> = ({
       saveCampaignPRD(generatedPRD);
       setStep(3);
     } catch (error: any) {
-      alert(`Error generating PRD: ${error.message}`);
+      const errorMsg = error.message || 'Unknown error';
+      
+      // Provide helpful suggestions for common errors
+      let userMessage = `Error generating PRD: ${errorMsg}`;
+      
+      if (errorMsg.includes('quota') || errorMsg.includes('Quota exceeded')) {
+        userMessage = `Gemini free tier quota exhausted.\n\nQuick fix:\n1. Go to Settings → API Keys\n2. Switch to Mistral, Groq, or another LLM\n3. Try again\n\nOr wait and try again in a few minutes if quota resets.`;
+      } else if (errorMsg.includes('rate limit')) {
+        userMessage = `API rate limit exceeded. Please wait a moment and try again, or switch to a different provider in Settings.`;
+      }
+      
+      alert(userMessage);
       setStep(1);
     } finally {
       setLoading(false);
