@@ -184,11 +184,21 @@ const CampaignsPage: React.FC = () => {
                     
                     const assetsWithImages = await Promise.all(imagePromises);
                     setAssets(assetsWithImages);
-                        }
-                        } catch (assetErr: any) {
-                        console.error('[CampaignsPage] Asset generation error:', assetErr.message);
-                        throw assetErr;
-                        }
+                    
+                    // Log asset status
+                    const withImages = assetsWithImages.filter(a => a.imageUrl).length;
+                    const withoutImages = assetsWithImages.filter(a => !a.imageUrl).length;
+                    console.log(`[CampaignsPage] ✓ Assets generated: ${withImages} with images, ${withoutImages} without`);
+                    
+                    if (withoutImages > 0) {
+                        setDebugError(`⚠️ ${withoutImages} assets missing images. Check image provider in Settings.`);
+                    }
+                         }
+                         } catch (assetErr: any) {
+                         console.error('[CampaignsPage] Asset generation error:', assetErr.message);
+                         setDebugError(`❌ Campaign generation failed:\n\n${assetErr.message}\n\nMake sure you have API keys configured in Settings.`);
+                         throw assetErr;
+                         }
                         }
                         
                         // Auto-save campaign after successful generation

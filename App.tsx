@@ -5,6 +5,7 @@ import { ToastContainer } from './components/ToastContainer';
 import { ApiKeyPrompt } from './components/ApiKeyPrompt';
 import Layout from './components/Layout';
 import { SonicOrb } from './components/SonicOrb';
+import HealthCheckDisplay from './components/HealthCheckDisplay';
 import { migrateLegacyKeys } from './src/services/settingsService';
 
 // Lazy load pages - importing from root pages/ directory
@@ -143,6 +144,8 @@ const App: React.FC = () => {
         <AuthProvider>
           <Router>
             <ToastContainer />
+            {/* Health Check Display - Mobile friendly error/status indicator */}
+            <HealthCheckDisplay />
             {/* Sonic Co-Pilot Orb (Hunter+ tiers only) */}
             <SonicOrb />
             <Routes>
