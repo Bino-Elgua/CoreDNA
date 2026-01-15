@@ -25,19 +25,10 @@ if [ -f ~/coredna-dev.pid ]; then
     rm ~/coredna-dev.pid
 fi
 
-# Start dev server
-npm run dev > ~/coredna-dev.log 2>&1 &
-echo $! > ~/coredna-dev.pid
+# Start dev server (runs on port 1111)
+npm run dev
 
-# Wait for server to start
-sleep 3
-
-# Display info
-echo ""
-echo "✅ Core DNA v2 is running!"
-echo ""
-echo "📍 Open your browser and go to:"
-echo "   http://localhost:3000"
+# Note: Server runs in foreground. Press Ctrl+C to stop.
 echo ""
 echo "🔑 First time setup:"
 echo "   1. You'll see an API Key prompt"
@@ -51,9 +42,7 @@ echo "   ✓ Lead Hunter (geolocation)"
 echo "   ✓ Campaign Planning"
 echo "   ✓ Settings & Preferences"
 echo ""
-echo "📊 Logs:"
-echo "   tail -f ~/coredna-dev.log"
 echo ""
-echo "🛑 Stop Server:"
-echo "   kill \$(cat ~/coredna-dev.pid)"
+echo "📍 Open your browser and go to:"
+echo "   http://localhost:1111"
 echo ""

@@ -1,0 +1,194 @@
+================================================================================
+CORÉDNA 2.0 - QUICK START (5 MINUTES)
+================================================================================
+
+STEP 1: CREATE SUPABASE PROJECT (2 min)
+─────────────────────────────────────────
+1. Go to https://supabase.com
+2. Create new project (name: "corédna2")
+3. Wait for initialization
+4. Go to Settings > API
+5. Copy URL and Anon Key
+
+STEP 2: SETUP ENVIRONMENT (1 min)
+─────────────────────────────────────────
+$ cp .env.local.template .env.local
+
+Edit .env.local:
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=your-key-here
+
+STEP 3: RUN MIGRATIONS (1 min)
+─────────────────────────────────────────
+In Supabase Dashboard > SQL Editor:
+
+For each file in supabase/migrations/:
+  1. Copy entire SQL file
+  2. Paste in SQL Editor
+  3. Click RUN
+
+Files to run (in order):
+  ✓ 001_create_settings_table.sql
+  ✓ 002_create_portfolios_table.sql
+  ✓ 003_create_campaigns_and_assets.sql
+  ✓ 004_add_tier_system.sql
+  ✓ 005_create_notes_and_activity.sql
+
+STEP 4: START DEV SERVER (1 min)
+─────────────────────────────────────────
+$ npm run dev
+
+Open: http://localhost:5173
+
+Check console: "Supabase client initialized" ✓
+
+DONE! Your backend is ready.
+
+================================================================================
+WHAT YOU NOW HAVE
+================================================================================
+
+OFFLINE-FIRST ARCHITECTURE
+  ✓ Works without internet
+  ✓ Auto-syncs to Supabase when online
+  ✓ No data loss on disconnect
+
+USER AUTHENTICATION
+  ✓ Email/password sign up
+  ✓ Anonymous guests
+  ✓ User tier system
+
+ERROR HANDLING
+  ✓ Centralized logging
+  ✓ User-friendly messages
+  ✓ Error history tracking
+
+DATA VALIDATION
+  ✓ Portfolio validation
+  ✓ Email/URL/phone checks
+  ✓ XSS prevention
+
+BACKEND DATABASE
+  ✓ 8 tables (portfolios, campaigns, leads, etc.)
+  ✓ RLS policies (data security)
+  ✓ Indexes (performance)
+
+================================================================================
+TESTING YOUR SETUP
+================================================================================
+
+TEST 1: Create a portfolio
+  1. Go to dashboard
+  2. Click "Create portfolio"
+  3. Fill in data
+  4. Click "Save"
+
+TEST 2: Check localStorage
+  1. Open DevTools (F12)
+  2. Go to Console
+  3. Run: JSON.parse(localStorage.getItem('core_dna_portfolios'))
+  4. Should see your portfolio
+
+TEST 3: Check Supabase
+  1. Go to Supabase dashboard
+  2. Click "Table Editor"
+  3. Select "portfolios" table
+  4. Should see your portfolio record
+
+TEST 4: Offline sync
+  1. DevTools > Network > set to "Offline"
+  2. Create another portfolio
+  3. Go back "Online"
+  4. Portfolio should auto-sync
+
+================================================================================
+COMMON COMMANDS
+================================================================================
+
+Start dev server:
+  $ npm run dev
+
+Build for production:
+  $ npm run build
+
+Preview production build:
+  $ npm run preview
+
+Check services in console:
+  import { hybridStorage } from './services/hybridStorageService'
+  import { authService } from './services/authService'
+  import { errorHandler } from './services/errorHandlingService'
+  import { validator } from './services/validationService'
+
+Get sync status:
+  hybridStorage.getSyncStatus()
+
+Get error history:
+  errorHandler.getErrorHistory(10)
+
+Get current user:
+  authService.getCurrentUser()
+
+Clear all data:
+  localStorage.clear()
+
+================================================================================
+DOCUMENTATION REFERENCE
+================================================================================
+
+SETUP GUIDE:
+  Read: SETUP_COMPLETE.md (overview)
+  Then: DEPLOYMENT_GUIDE.md (detailed steps)
+
+API REFERENCE:
+  Read: SERVICES_INTEGRATION.md (all service APIs)
+
+TROUBLESHOOTING:
+  Read: DEPLOYMENT_GUIDE.md (troubleshooting section)
+  Or:   IMPLEMENTATION_CHECKLIST.md (verification)
+
+FEATURES:
+  Read: README.md (project overview)
+  Or:   QUICK_REFERENCE.md (existing features)
+
+================================================================================
+IF SOMETHING GOES WRONG
+================================================================================
+
+"Missing Supabase environment variables"
+  → Check .env.local exists
+  → Restart dev server: npm run dev
+
+"Cannot connect to Supabase"
+  → Verify VITE_SUPABASE_URL is correct
+  → Check Supabase project is active
+
+"Portfolios not in database"
+  → Run migrations (check Step 3 above)
+  → Verify tables exist in Supabase Table Editor
+
+"Offline queue not syncing"
+  → Check network is actually online
+  → Run in console: hybridStorage.getSyncStatus()
+
+For more help:
+  See DEPLOYMENT_GUIDE.md > Troubleshooting
+
+================================================================================
+NEXT PHASE: BUILD FEATURES
+================================================================================
+
+With backend ready, you can now:
+
+1. Add auth UI (sign up/login)
+2. Integrate services in pages
+3. Add toast notifications
+4. Implement real-time sync
+5. Add data export (PDF/JSON)
+6. Build team collaboration
+
+Reference: SERVICES_INTEGRATION.md for all APIs
+
+================================================================================
+Questions? See SETUP_COMPLETE.md
+================================================================================

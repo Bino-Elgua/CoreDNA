@@ -5,10 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface UserProfileCardProps {
-  user: UserProfile;
+  user?: UserProfile;
 }
 
 const UserProfileCard: React.FC<UserProfileCardProps> = ({ user }) => {
+  if (!user) {
+    return null;
+  }
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'security' | 'data'>('overview');

@@ -5,6 +5,7 @@
  */
 
 import { generateText, generateImage } from './ai/router';
+import { generateImage as generateImageSingle } from './mediaGenerationService';
 
 export interface CampaignUserStory {
   id: string;
@@ -60,9 +61,9 @@ async function generateAssetImages(userStories: CampaignUserStory[], onProgress?
         if (onProgress) onProgress(msg);
         
         const prompt = `Professional marketing image for: ${story.title}. ${story.description || ''} Style: modern, professional, clean.`;
-        console.log(`[generateAssetImages] Image prompt: ${prompt.substring(0, 100)}`);
-        
-        const result = await generateImage(prompt, { style: 'professional marketing' });
+         console.log(`[generateAssetImages] Image prompt: ${prompt.substring(0, 100)}`);
+         
+         const result = await generateImageSingle(prompt, { style: 'professional marketing' });
         
         const imageUrl = result ? result.url : `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(story.title)}`;
         imageMap.set(story.id, imageUrl);

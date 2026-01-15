@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toastService } from '../services/toastService';
-import { DPAModal } from '../src/components/DPAModal';
+// import { DPAModal } from '../src/components/DPAModal'; // Removed - component doesn't exist
 
 export function AffiliateHubPage() {
   // Hardcode to agency for demo - in production, fetch from tierService
@@ -148,13 +148,13 @@ export function AffiliateHubPage() {
         )}
       </div>
 
-      {/* DPA Modal */}
-      {showDPAModal && (
+      {/* DPA Modal - Removed component */}
+      {/* {showDPAModal && (
         <DPAModal 
           onAccept={handleDPAAccept} 
           onCancel={() => setShowDPAModal(false)}
         />
-      )}
+      )} */}
     </div>
   );
 }

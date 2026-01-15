@@ -40,7 +40,13 @@ function getActiveImageProvider(): { provider: string; apiKey: string } {
     
     const settings = JSON.parse(settingsStr);
     console.log('[getActiveImageProvider] Settings loaded. activeImageGen:', settings.activeImageGen);
+    console.log('[getActiveImageProvider] Full settings:', JSON.stringify(settings, null, 2));
     console.log('[getActiveImageProvider] Available image providers:', settings.image ? Object.keys(settings.image) : 'none');
+    if (settings.image) {
+      Object.entries(settings.image).forEach(([k, v]: [string, any]) => {
+        console.log(`[getActiveImageProvider]   ${k}: apiKey=${v.apiKey ? v.apiKey.substring(0, 10) + '...' : 'MISSING'}, enabled=${v.enabled}`);
+      });
+    }
     
     // Check activeImageGen first
     if (settings.activeImageGen && settings.image?.[settings.activeImageGen]?.apiKey?.trim()) {
@@ -108,16 +114,20 @@ export async function generateImage(
   options: ImageGenerationOptions = {}
 ): Promise<MediaGenerationResult> {
   try {
-    console.log('[generateImage] Starting image generation for:', prompt.substring(0, 50));
+    console.log('[generateImage] ========== START IMAGE GENERATION ==========');
+    console.log('[generateImage] Prompt:', prompt.substring(0, 100));
+    console.log('[generateImage] Options:', options);
     
     let providerInfo: { provider: string; apiKey: string };
     try {
       providerInfo = getActiveImageProvider();
     } catch (providerError: any) {
-      console.error('[generateImage] Failed to get active provider:', providerError.message);
+      console.error('[generateImage] ✗ Failed to get active provider:', providerError.message);
       console.log('[generateImage] Falling back to placeholder');
+      const placeholder = generatePlaceholder(prompt);
+      console.log('[generateImage] Placeholder URL:', placeholder);
       return {
-        url: generatePlaceholder(prompt),
+        url: placeholder,
         provider: 'placeholder',
         generatedAt: Date.now(),
         metadata: { reason: 'No provider configured', error: providerError.message }
@@ -128,7 +138,8 @@ export async function generateImage(
     const style = options.style || '';
     const fullPrompt = style ? `${prompt}. Style: ${style}` : prompt;
     
-    console.log(`[generateImage] Using provider: ${provider}, API key length: ${apiKey.length}`);
+    console.log(`[generateImage] Using provider: ${provider}`);
+    console.log(`[generateImage] API key configured: ${apiKey ? 'YES (' + apiKey.substring(0, 10) + '...)' : 'NO'}`);
     
     let result: MediaGenerationResult;
     
@@ -188,17 +199,22 @@ export async function generateImage(
         };
     }
     
-    console.log(`[generateImage] ✓ Success with ${result.provider}: ${result.url.substring(0, 80)}`);
+    console.log(`[generateImage] ✓ Success with ${result.provider}`);
+    console.log(`[generateImage] Generated URL: ${result.url.substring(0, 80)}`);
+    console.log('[generateImage] ========== END IMAGE GENERATION ==========');
     return result;
     
   } catch (error: any) {
-    console.error('[generateImage] Fatal error:', error.message, error.stack);
+    console.error('[generateImage] ✗ Fatal error:', error.message);
+    console.error('[generateImage] Error stack:', error.stack);
     const placeholder = generatePlaceholder(prompt);
     console.log('[generateImage] Returning placeholder:', placeholder);
+    console.log('[generateImage] ========== END IMAGE GENERATION (FALLBACK) ==========');
     return {
       url: placeholder,
       provider: 'placeholder',
-      generatedAt: Date.now()
+      generatedAt: Date.now(),
+      metadata: { error: error.message }
     };
   }
 }

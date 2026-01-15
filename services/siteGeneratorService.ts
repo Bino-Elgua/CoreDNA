@@ -6,6 +6,7 @@
 
 import { BrandDNA, CampaignAsset, WebsiteData } from '../types';
 import { universalGenerate } from './geminiService';
+import { generateImage } from './mediaGenerationService';
 import rlmService from './rlmService';
 import inferenceRouter from './inferenceRouter';
 
@@ -394,14 +395,17 @@ Return a JSON object with:
      * Generate visual assets for pages (images, etc.)
      */
     private async generatePageVisuals(pages: GeneratedSite['pages'], dna: BrandDNA): Promise<void> {
-        // Image generation would happen here
-        // For now, use existing DNA visuals
         const allPages = Object.values(pages);
         for (const page of allPages) {
             for (const section of page.content.sections) {
                 if (section.imagePrompt && !section.imageUrl) {
-                    // TODO: Call generateAssetImage() here
-                    // section.imageUrl = await generateAssetImage(section.imagePrompt, ...);
+                    try {
+                        const result = await generateImage(section.imagePrompt, { style: dna.visualStyle?.description || 'modern' });
+                        section.imageUrl = result.url;
+                    } catch (error: any) {
+                        console.warn(`[generatePageVisuals] Failed to generate image for section:`, error.message);
+                        // Keep imagePrompt as fallback
+                    }
                 }
             }
         }

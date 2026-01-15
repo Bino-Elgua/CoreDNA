@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CampaignAsset, BrandDNA } from '../types';
-import { refineAssetWithAI, generateAssetImage } from '../services/geminiService';
+import { refineAssetWithAI } from '../services/geminiService';
+import { generateImage } from '../services/mediaGenerationService';
 
 interface AssetEditorProps {
     isOpen: boolean;
@@ -41,9 +42,9 @@ const AssetEditor: React.FC<AssetEditorProps> = ({ isOpen, onClose, asset, dna, 
     const handleRegenerateVisual = async () => {
         setIsGenerating(true);
         try {
-            const newUrl = await generateAssetImage(imagePrompt, dna.visualStyle?.description || 'Modern');
-            if (newUrl) {
-                onSave({ ...asset, title, content, imagePrompt, imageUrl: newUrl });
+            const result = await generateImage(imagePrompt, { style: dna.visualStyle?.description || 'Modern' });
+            if (result.url) {
+                onSave({ ...asset, title, content, imagePrompt, imageUrl: result.url });
             }
         } catch (e) {
             alert("Visual generation error.");

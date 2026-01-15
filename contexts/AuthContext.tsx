@@ -16,12 +16,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check local storage for mock session and ensure it's agency tier
     const storedUser = localStorage.getItem('core_dna_user');
     if (storedUser) {
-      const user = JSON.parse(storedUser);
-      // Ensure demo user always has agency tier
-      if (user.id === 'user_123') {
-        user.tier = 'agency';
+      try {
+        const user = JSON.parse(storedUser);
+        // Validate user object has required properties
+        if (user && typeof user === 'object' && user.id && user.name && user.email && user.avatar) {
+          // Ensure demo user always has agency tier
+          if (user.id === 'user_123') {
+            user.tier = 'agency';
+          }
+          setUser(user);
+        } else {
+          // Clear corrupted data
+          localStorage.removeItem('core_dna_user');
+        }
+      } catch (e) {
+        console.error('Error parsing stored user:', e);
+        localStorage.removeItem('core_dna_user');
       }
-      setUser(user);
     }
   }, []);
 

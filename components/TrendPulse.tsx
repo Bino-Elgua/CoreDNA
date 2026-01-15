@@ -6,7 +6,7 @@ import { generateTrendPulse } from '../services/geminiService';
 import { useNavigate } from 'react-router-dom';
 
 interface TrendPulseProps {
-    dna: BrandDNA;
+    dna?: BrandDNA;
 }
 
 const TrendPulse: React.FC<TrendPulseProps> = ({ dna }) => {
@@ -15,10 +15,16 @@ const TrendPulse: React.FC<TrendPulseProps> = ({ dna }) => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        loadTrends();
-    }, [dna.id]);
+        if (dna?.id) {
+            loadTrends();
+        }
+    }, [dna?.id]);
 
     const loadTrends = async () => {
+        if (!dna?.id) {
+            setTrends([]);
+            return;
+        }
         setLoading(true);
         try {
             // Check local storage cache first to save tokens
@@ -50,6 +56,11 @@ const TrendPulse: React.FC<TrendPulseProps> = ({ dna }) => {
         });
     };
 
+    // Don't render if no DNA provided
+    if (!dna?.id) {
+        return null;
+    }
+
     return (
         <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg border border-gray-100 dark:border-gray-700 mt-8 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -71,6 +82,10 @@ const TrendPulse: React.FC<TrendPulseProps> = ({ dna }) => {
             {loading && trends.length === 0 ? (
                 <div className="space-y-4">
                     {[1,2].map(i => <div key={i} className="h-24 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse"></div>)}
+                </div>
+            ) : trends.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                    <p>No trends available. Click the refresh button to load trends.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">

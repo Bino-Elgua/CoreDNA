@@ -8,7 +8,9 @@ import { workflowProviderManager, WorkflowProviderConfig } from '../services/wor
 import { getSettings, saveSettings } from '../services/settingsService';
 import HealthCheckInput from '../components/HealthCheckInput';
 import { HealthCheckResult } from '../services/healthCheckService';
-import { ALL_VIDEO_PROVIDERS } from '../src/constants/videoProviders';
+// import { ALL_VIDEO_PROVIDERS } from '../src/constants/videoProviders'; // Removed - file doesn't exist
+
+const ALL_VIDEO_PROVIDERS = []; // Stub
 
 const INITIAL_SETTINGS: GlobalSettings = {
     theme: 'system',

@@ -6,6 +6,9 @@ import { ApiKeyPrompt } from './components/ApiKeyPrompt';
 import Layout from './components/Layout';
 import { SonicOrb } from './components/SonicOrb';
 import HealthCheckDisplay from './components/HealthCheckDisplay';
+import { errorHandler } from './services/errorHandlingService';
+import { authService } from './services/authService';
+import { hybridStorage } from './services/hybridStorageService';
 // import { migrateLegacyKeys } from './services/settingsService'; // Function doesn't exist
 
 // Lazy load pages - importing from root pages/ directory
@@ -110,13 +113,22 @@ const App: React.FC = () => {
 
   useEffect(() => {
     try {
-      // STEP 0: Check storage quota WITHOUT clearing data
+      // STEP 0: Initialize services
+      console.log('[App] Initializing services...');
+      
+      // Subscribe to errors for UI notifications
+      errorHandler.onError((error) => {
+        console.log('[App] Error occurred:', error);
+        // Toast notifications would go here
+      });
+
+      // STEP 1: Check storage quota WITHOUT clearing data
       try {
         localStorage.setItem('_quota_test', 'test');
         localStorage.removeItem('_quota_test');
       } catch (e: any) {
         if (e.name === 'QuotaExceededError') {
-          console.warn('[App] ⚠️ localStorage quota exceeded');
+          errorHandler.logQuotaError('localStorage quota exceeded');
           const dismissed = localStorage.getItem('_quotaWarningDismissed');
           if (!dismissed) {
             setShowQuotaWarning(true);
@@ -125,8 +137,18 @@ const App: React.FC = () => {
         }
       }
 
-      // STEP 1: Migrate legacy API keys on app load (one-time)
-      // migrateLegacyKeys(); // Function doesn't exist
+      // STEP 2: Setup auth (get current user)
+      const user = authService.getCurrentUser();
+      console.log('[App] Current user:', user);
+
+      // STEP 3: Setup hybrid storage
+      const syncStatus = hybridStorage.getSyncStatus();
+      console.log('[App] Sync status:', syncStatus);
+
+      // Subscribe to auth changes
+      authService.onAuthChange((user) => {
+        console.log('[App] Auth state changed:', user);
+      });
 
       const settings = localStorage.getItem('core_dna_settings');
       const dismissed = localStorage.getItem('apiPromptDismissed');
@@ -143,14 +165,14 @@ const App: React.FC = () => {
             setShowApiPrompt(true);
           }
         } catch (e) {
-          console.error('Error parsing settings:', e);
+          errorHandler.logError('SETTINGS_PARSE_ERROR', 'Error parsing settings', 'warning');
           if (!dismissed) setShowApiPrompt(true);
         }
       } else if (!dismissed) {
         setShowApiPrompt(true);
       }
     } catch (e) {
-      console.error('Error checking API keys:', e);
+      errorHandler.handleUncaughtError(e);
     }
   }, []);
 

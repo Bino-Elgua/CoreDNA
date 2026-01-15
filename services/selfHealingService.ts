@@ -6,7 +6,7 @@
 
 import { CampaignAsset, BrandDNA } from '../types';
 import { sonicChat, SonicMessage } from './sonicCoPilot';
-import { generateAssetImage } from './geminiService';
+import { generateImage } from './mediaGenerationService';
 
 export interface AssetValidationResult {
   isValid: boolean;
@@ -238,7 +238,8 @@ Response ONLY with JSON (no markdown):
   let imageUrl = asset.imageUrl;
   if (asset.imagePrompt) {
     try {
-      imageUrl = await generateAssetImage(asset.imagePrompt, dna.visualStyle?.description || 'modern');
+      const result = await generateImage(asset.imagePrompt, { style: dna.visualStyle?.description || 'modern' });
+      imageUrl = result.url;
     } catch (e) {
       console.warn('[regenerateWithFeedback] Image generation failed, keeping original');
     }

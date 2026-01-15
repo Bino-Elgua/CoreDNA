@@ -2,10 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { analyzeBrandDNA, findLeadsWithMaps, runCloserAgent, generateAssetImage } from '../services/geminiService';
+import { analyzeBrandDNA, findLeadsWithMaps, runCloserAgent } from '../services/geminiService';
+import { generateImage } from '../services/mediaGenerationService';
 import { enhancedExtractionService } from '../services/enhancedExtractionService';
 import rlmService from '../services/rlmService';
 import n8nService from '../services/n8nService';
+import { saveDNAAsPortfolio } from '../services/dataFlowService';
 import { BrandDNA, LeadProfile, GlobalSettings } from '../types';
 import DNAProfileCard from '../components/DNAProfileCard';
 import DNAHelix from '../components/DNAHelix';
@@ -65,6 +67,10 @@ const ExtractPage: React.FC = () => {
             }
             
             setDnaResult(dna);
+            // Save to portfolio system (new primary storage)
+            const portfolioId = saveDNAAsPortfolio(dna, url);
+            console.log('[ExtractPage] ✓ Saved as portfolio:', portfolioId);
+            // Also keep in legacy format for backward compatibility
             const existing = localStorage.getItem('core_dna_profiles');
             const profiles = existing ? JSON.parse(existing) : [];
             profiles.unshift(dna);
@@ -82,6 +88,10 @@ const ExtractPage: React.FC = () => {
                     setLoadingMsg('Using standard LLM analysis...');
                     const dnaFallback = await analyzeBrandDNA(url, brandName);
                     setDnaResult(dnaFallback);
+                    // Save to portfolio system
+                    const portfolioId = saveDNAAsPortfolio(dnaFallback, url);
+                    console.log('[ExtractPage Fallback] ✓ Saved as portfolio:', portfolioId);
+                    // Keep in legacy format for backward compatibility
                     const existing = localStorage.getItem('core_dna_profiles');
                     const profiles = existing ? JSON.parse(existing) : [];
                     profiles.unshift(dnaFallback);
@@ -221,8 +231,12 @@ const ExtractPage: React.FC = () => {
              // Optionally generate the visual for the sample post
              if (portfolio.posts.length > 0) {
                   const post = portfolio.posts[0];
-                  const img = await generateAssetImage(post.imagePrompt || '', portfolio.targetEssence.visualDNA);
-                  portfolio.posts[0].imageUrl = img;
+                  try {
+                       const result = await generateImage(post.imagePrompt || '', { style: portfolio.targetEssence.visualDNA });
+                       portfolio.posts[0].imageUrl = result.url;
+                  } catch (imgErr) {
+                       console.warn('[ExtractPage] Failed to generate portfolio image:', imgErr);
+                  }
              }
 
              setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, closerPortfolio: portfolio } : l));
@@ -337,9 +351,18 @@ const ExtractPage: React.FC = () => {
                             {/* HUNTER PANEL INTEGRATION */}
                             <LeadHunterPanel dna={dnaResult} />
 
-                            <div className="text-center pt-8">
-                                <button onClick={() => { setDnaResult(null); navigate(location.pathname, { state: {}, replace: true }); }} className="text-xs font-black uppercase tracking-widest text-gray-500 hover:text-white transition-colors bg-white/5 px-6 py-3 rounded-full border border-white/10">
-                                    Analyze Different Brand
+                            <div className="flex justify-center gap-4 pt-8">
+                                <button 
+                                  onClick={() => navigate('/dashboard')}
+                                  className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition-all"
+                                >
+                                  Save & Return to Dashboard
+                                </button>
+                                <button 
+                                  onClick={() => { setDnaResult(null); navigate(location.pathname, { state: {}, replace: true }); }} 
+                                  className="px-6 py-3 text-gray-500 hover:text-white transition-colors bg-white/5 border border-white/10 rounded-lg font-medium"
+                                >
+                                  Analyze Another
                                 </button>
                             </div>
                         </motion.div>

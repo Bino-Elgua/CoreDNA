@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandDNA, CampaignAsset, SavedCampaign, UserProfile } from '../types';
-import { generateCampaignAssets, generateAssetImage, runAgentHiveCampaign } from '../services/geminiService';
+import { generateCampaignAssets, runAgentHiveCampaign } from '../services/geminiService';
+import { generateImage } from '../services/mediaGenerationService';
 import { CampaignPRD } from '../services/campaignPRDService';
+import { getPortfolios, addCampaignToPortfolio } from '../services/portfolioService';
 import AssetCard from '../components/AssetCard';
 import AssetEditor from '../components/AssetEditor';
 import SavedCampaignsModal from '../components/SavedCampaignsModal';
@@ -172,11 +174,16 @@ const CampaignsPage: React.FC = () => {
                         
                         try {
                             console.log(`[CampaignsPage] Generating image for ${asset.id}:`, asset.imagePrompt.substring(0, 50));
-                            const img = await generateAssetImage(asset.imagePrompt, selectedDNA.visualStyle?.description || 'modern style');
-                            console.log(`[CampaignsPage] ✓ Image generated for ${asset.id}: ${img.substring(0, 80)}`);
-                            return { ...asset, imageUrl: img, isGeneratingImage: false };
-                        } catch (imgErr) {
-                            console.error('[CampaignsPage] Image generation failed for asset:', asset.id, imgErr);
+                            console.log(`[CampaignsPage] Full imagePrompt:`, asset.imagePrompt);
+                            console.log(`[CampaignsPage] Using style:`, selectedDNA.visualStyle?.description || 'modern style');
+                            const result = await generateImage(asset.imagePrompt, { style: selectedDNA.visualStyle?.description || 'modern style' });
+                            console.log(`[CampaignsPage] ✓ Image generated for ${asset.id}: ${result.url.substring(0, 80)}`);
+                            console.log(`[CampaignsPage] Result provider: ${result.provider}`);
+                            return { ...asset, imageUrl: result.url, isGeneratingImage: false };
+                        } catch (imgErr: any) {
+                            console.error('[CampaignsPage] Image generation failed for asset:', asset.id);
+                            console.error('[CampaignsPage] Error message:', imgErr?.message || imgErr);
+                            console.error('[CampaignsPage] Full error:', imgErr);
                             // Return asset without image - don't break the flow
                             return { ...asset, isGeneratingImage: false };
                         }
@@ -193,29 +200,39 @@ const CampaignsPage: React.FC = () => {
                     if (withoutImages > 0) {
                         setDebugError(`⚠️ ${withoutImages} assets missing images. Check image provider in Settings.`);
                     }
-                         }
-                         } catch (assetErr: any) {
-                         console.error('[CampaignsPage] Asset generation error:', assetErr.message);
-                         setDebugError(`❌ Campaign generation failed:\n\n${assetErr.message}\n\nMake sure you have API keys configured in Settings.`);
-                         throw assetErr;
-                         }
-                        }
-                        
-                        // Auto-save campaign after successful generation
-                        console.log('[CampaignsPage] Auto-saving generated campaign...');
-                        if (assets.length > 0) {
+                    
+                    // AUTO-SAVE campaign after successful generation (use assetsWithImages, not state)
+                    console.log('[CampaignsPage] Auto-saving generated campaign...');
+                    if (assetsWithImages.length > 0) {
                         const newSavedCampaign: SavedCampaign = {
-                        id: `camp-${Date.now()}`,
-                        dna: selectedDNA!,
-                        goal: goal,
-                        assets: assets,
-                        timestamp: Date.now()
+                            id: `camp-${Date.now()}`,
+                            dna: selectedDNA!,
+                            goal: goal,
+                            assets: assetsWithImages,
+                            timestamp: Date.now()
                         };
                         const updatedCampaigns = [newSavedCampaign, ...savedCampaigns];
                         localStorage.setItem('core_dna_saved_campaigns', JSON.stringify(updatedCampaigns));
                         setSavedCampaigns(updatedCampaigns);
-                        console.log('[CampaignsPage] Campaign auto-saved:', newSavedCampaign.id);
+                        console.log('[CampaignsPage] ✓ Campaign auto-saved:', newSavedCampaign.id);
+                        
+                        // Also save to portfolio if one exists for this DNA
+                        if (selectedDNA?.id) {
+                          const portfolios = getPortfolios();
+                          const portfolio = portfolios.find(p => p.brandDNA.id === selectedDNA.id);
+                          if (portfolio) {
+                            addCampaignToPortfolio(portfolio.id, newSavedCampaign);
+                            console.log('[CampaignsPage] ✓ Campaign added to portfolio:', portfolio.id);
+                          }
                         }
+                    }
+                }
+            } catch (assetErr: any) {
+                console.error('[CampaignsPage] Asset generation error:', assetErr.message);
+                setDebugError(`❌ Campaign generation failed:\n\n${assetErr.message}\n\nMake sure you have API keys configured in Settings.`);
+                throw assetErr;
+            }
+        }
                         } catch (e) {
         const errorMsg = e instanceof Error ? e.message : String(e);
         const stack = e instanceof Error ? e.stack : '';
@@ -238,8 +255,8 @@ const CampaignsPage: React.FC = () => {
   const handleRegenerateImage = async (assetId: string, prompt: string) => {
     setAssets(prev => prev.map(a => a.id === assetId ? { ...a, isGeneratingImage: true } : a));
     try {
-        const img = await generateAssetImage(prompt, selectedDNA?.visualStyle?.description || 'modern style');
-        setAssets(prev => prev.map(a => a.id === assetId ? { ...a, imageUrl: img || a.imageUrl, isGeneratingImage: false } : a));
+        const result = await generateImage(prompt, { style: selectedDNA?.visualStyle?.description || 'modern style' });
+        setAssets(prev => prev.map(a => a.id === assetId ? { ...a, imageUrl: result.url || a.imageUrl, isGeneratingImage: false } : a));
     } catch (e) { setAssets(prev => prev.map(a => a.id === assetId ? { ...a, isGeneratingImage: false } : a)); }
   };
 
