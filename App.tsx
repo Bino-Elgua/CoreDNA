@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { ToastContainer } from './components/ToastContainer';
+import ToastContainer from './components/ToastContainer';
 import { ApiKeyPrompt } from './components/ApiKeyPrompt';
 import Layout from './components/Layout';
 import { SonicOrb } from './components/SonicOrb';

@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandDNA, LeadProfile } from '../types';
-import { geminiService } from '../services/geminiService';
+import { findLeadsWithMaps } from '../services/geminiService';
+import n8nService from '../services/n8nService';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LeadHunterPanelProps {
@@ -16,6 +17,8 @@ const LeadHunterPanel: React.FC<LeadHunterPanelProps> = ({ dna }) => {
     const [isHunting, setIsHunting] = useState(false);
     const [leads, setLeads] = useState<any[]>([]);
     const [activeEmailId, setActiveEmailId] = useState<string | null>(null);
+    const [niche, setNiche] = useState('');
+    const [loadingMsg, setLoadingMsg] = useState('');
     
     // Auto-Close State
     const [autoCloseEnabled, setAutoCloseEnabled] = useState(false);
@@ -28,26 +31,78 @@ const LeadHunterPanel: React.FC<LeadHunterPanelProps> = ({ dna }) => {
             alert("Upgrade to Agency Hunter Tier to access this feature.");
             return;
         }
+
+        if (!niche.trim()) {
+            alert("Please enter a niche (e.g., 'Gyms', 'Dentists').");
+            return;
+        }
+
+        if (!("geolocation" in navigator)) {
+            alert("❌ Geolocation is not supported by your browser.");
+            return;
+        }
+
         setIsHunting(true);
         setLeads([]);
-        try {
-            // Placeholder: Would call geminiService to hunt competitors
-            const mockLeads = [
-                { id: '1', name: 'Competitor 1', matchScore: 72, website: 'competitor1.com', revenue: '$2.5M' },
-                { id: '2', name: 'Competitor 2', matchScore: 68, website: 'competitor2.com', revenue: '$1.8M' },
-                { id: '3', name: 'Competitor 3', matchScore: 65, website: 'competitor3.com', revenue: '$1.2M' },
-            ];
-            setLeads(mockLeads);
-        } catch (e) {
-            const errorMsg = e instanceof Error ? e.message : String(e);
-            if (errorMsg.includes('No LLM provider')) {
-                alert('❌ No API Keys Configured\n\nGo to Settings → API Keys and add at least one LLM provider (OpenAI, Claude, Gemini, etc.) with its API key.');
-            } else {
-                alert("Hunt failed. Satellites offline.");
-            }
-        } finally {
-            setIsHunting(false);
-        }
+        setLoadingMsg('Requesting location permission...');
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    setLoadingMsg(`Locking on coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}...`);
+                    
+                    // Try n8n workflow first (silent automation), fallback to standard mode
+                    let results: LeadProfile[] = [];
+                    const n8nAvailable = await n8nService.isAvailable();
+                    if (n8nAvailable) {
+                        setLoadingMsg('Running automated lead discovery workflow...');
+                        results = await n8nService.runLeadGeneration(niche, latitude, longitude);
+                    }
+                    
+                    // Ensure results is an array
+                    if (!Array.isArray(results)) {
+                        results = [];
+                    }
+                    
+                    // Fallback to standard mode if workflow unavailable
+                    if (results.length === 0) {
+                        setLoadingMsg(`Neural Scouring of Business Registries & Digital Footprints...`);
+                        results = await findLeadsWithMaps(niche, latitude, longitude);
+                    }
+                    
+                    // Final safety check before setting state
+                    setLeads(Array.isArray(results) ? results : []);
+                    setLoadingMsg('');
+                } catch (e) {
+                    const errorMsg = e instanceof Error ? e.message : String(e);
+                    console.error("Lead Hunter Error:", e);
+                    if (errorMsg.includes('No LLM provider')) {
+                        alert('❌ No API Keys Configured\n\nGo to Settings → API Keys and add at least one LLM provider (OpenAI, Claude, Gemini, etc.) with its API key.');
+                    } else {
+                        alert("Hunt failed. Satellites offline. Check console for details.");
+                    }
+                    setLoadingMsg('');
+                } finally {
+                    setIsHunting(false);
+                }
+            },
+            (error) => {
+                const errorMsg = error.code === 1 
+                    ? "❌ Location access denied. Please enable in browser settings."
+                    : error.code === 2 
+                    ? "❌ Location unavailable. Check your signal."
+                    : error.code === 3 
+                    ? "❌ Location request timed out."
+                    : `❌ ${error.message}`;
+                
+                console.error("[Location] Error:", errorMsg);
+                alert(errorMsg + "\n\nTo enable:\n1. Settings → Privacy → Location\n2. Allow access\n3. Try again");
+                setLoadingMsg('');
+                setIsHunting(false);
+            },
+            { timeout: 10000, enableHighAccuracy: true }
+        );
     };
 
     const generateEmail = (leadName: string) => {
@@ -96,27 +151,42 @@ Let's lock your slot: https://cal.com/${user?.name?.replace(/\s/g,'').toLowerCas
                     </div>
                 )}
 
-                <div className="p-8 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="p-8 border-b border-white/5 space-y-6">
                     <div>
                         <h2 className="text-2xl font-display font-black text-white flex items-center gap-3">
                             <span className="text-3xl">🎯</span> Target Acquisition
                         </h2>
-                        <p className="text-gray-400 text-sm mt-2">Scrape and analyze competitors for {dna.name}.</p>
+                        <p className="text-gray-400 text-sm mt-2">Find local competitors & leads by niche. Requires location permission.</p>
                     </div>
-                    <button 
-                        onClick={handleHunt}
-                        disabled={isHunting || !isHunterTier}
-                        className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-red-900/20 transition-all flex items-center gap-3 disabled:opacity-50"
-                    >
-                        {isHunting ? (
-                            <span className="animate-pulse">Scanning Grid...</span>
-                        ) : (
-                            <>
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                Hunt Leads for This Brand
-                            </>
-                        )}
-                    </button>
+                    
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <input
+                            type="text"
+                            value={niche}
+                            onChange={(e) => setNiche(e.target.value)}
+                            placeholder="Enter niche (e.g., 'Gyms', 'Dentists', 'Web Designers')"
+                            disabled={isHunting}
+                            className="flex-1 px-6 py-3 bg-black/40 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:border-dna-primary outline-none transition-colors"
+                        />
+                        <button 
+                            onClick={handleHunt}
+                            disabled={isHunting || !isHunterTier || !niche.trim()}
+                            className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-red-900/20 transition-all flex items-center gap-3 disabled:opacity-50 whitespace-nowrap"
+                        >
+                            {isHunting ? (
+                                <span className="animate-pulse">Scanning Grid...</span>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    Hunt Leads
+                                </>
+                            )}
+                        </button>
+                    </div>
+                    
+                    {loadingMsg && (
+                        <p className="text-center text-[10px] font-mono text-dna-secondary animate-pulse tracking-[0.3em] uppercase">{loadingMsg}</p>
+                    )}
                 </div>
 
                 {leads.length > 0 && (

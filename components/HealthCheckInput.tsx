@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProviderConfig, LLMProviderId, ImageProviderId, VoiceProviderId, WorkflowProviderId } from '../types';
 import { checkLLMHealth, checkImageHealth, checkVoiceHealth, checkWorkflowHealth, HealthCheckResult } from '../services/healthCheckService';
+import { validator, ValidationError } from '../services/validationService';
 
 interface HealthCheckInputProps {
     provider: LLMProviderId | ImageProviderId | VoiceProviderId | WorkflowProviderId;
@@ -31,7 +32,49 @@ const HealthCheckInput: React.FC<HealthCheckInputProps> = ({
 }) => {
     const [healthStatus, setHealthStatus] = useState<HealthCheckResult | null>(null);
     const [isChecking, setIsChecking] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
+    // Validate input based on field type
+    const validateInput = (inputValue: string): ValidationError[] => {
+        const errors: ValidationError[] = [];
+        
+        if (!inputValue || !inputValue.trim()) {
+            errors.push({ field: fieldName, message: `${fieldName} is required` });
+            return errors;
+        }
+
+        // URL validation for webhook URLs
+        if (inputType === 'url') {
+            if (!validator.isValidUrl(inputValue)) {
+                errors.push({ field: fieldName, message: 'Invalid URL format' });
+            }
+        }
+
+        // Email validation if applicable
+        if (fieldName === 'email' && !validator.isValidEmail(inputValue)) {
+            errors.push({ field: fieldName, message: 'Invalid email address' });
+        }
+
+        // Generic API key validation
+        if (fieldName === 'apiKey' && inputValue.length < 10) {
+            errors.push({ field: fieldName, message: 'API key appears too short' });
+        }
+
+        return errors;
+    };
+
+    // Handle input change with real-time validation
+    const handleInputChange = (newValue: string) => {
+        onChange(newValue);
+        
+        if (newValue.trim()) {
+            const errors = validateInput(newValue);
+            setValidationErrors(errors);
+        } else {
+            setValidationErrors([]);
+        }
+    };
 
     // Run health check after user stops typing (500ms debounce)
     useEffect(() => {
@@ -39,6 +82,12 @@ const HealthCheckInput: React.FC<HealthCheckInputProps> = ({
 
         if (!value || value.trim() === '') {
             setHealthStatus(null);
+            return;
+        }
+
+        // Skip health check if validation errors exist
+        const errors = validateInput(value);
+        if (errors.length > 0) {
             return;
         }
 
@@ -154,21 +203,43 @@ const HealthCheckInput: React.FC<HealthCheckInputProps> = ({
                     {label}
                 </label>
             )}
-            <div className={`relative border-2 rounded-xl transition-all ${getStatusColor()}`}>
+            <div className={`relative border-2 rounded-xl transition-all ${
+                validationErrors.length > 0 ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : getStatusColor()
+            }`}>
                 <input
                     type={inputType}
                     value={value}
-                    onChange={(e) => onChange(e.target.value)}
+                    onChange={(e) => handleInputChange(e.target.value)}
                     placeholder={placeholder}
                     className="w-full p-3 rounded-xl bg-transparent outline-none text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-600"
                 />
-                {(isChecking || healthStatus) && (
+                {(isChecking || healthStatus || validationErrors.length > 0) && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {getStatusIcon()}
+                        {validationErrors.length > 0 ? (
+                            <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                        ) : (
+                            getStatusIcon()
+                        )}
                     </div>
                 )}
             </div>
-            {getStatusMessage()}
+            {validationErrors.length > 0 ? (
+                <div className="space-y-2">
+                    {validationErrors.map((err, idx) => (
+                        <div key={idx} className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <span className="text-red-600 dark:text-red-400 font-bold text-lg flex-shrink-0">⚠️</span>
+                            <div>
+                                <p className="text-sm font-medium text-red-800 dark:text-red-300">{err.field}</p>
+                                <p className="text-sm text-red-700 dark:text-red-400">{err.message}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                getStatusMessage()
+            )}
             {getKeyUrl && (
                 <a 
                     href={getKeyUrl} 

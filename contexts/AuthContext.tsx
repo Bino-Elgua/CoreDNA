@@ -33,6 +33,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error parsing stored user:', e);
         localStorage.removeItem('core_dna_user');
       }
+    } else {
+      // Auto-login on first load if no user exists
+      const mockUser: UserProfile = {
+        id: 'user_123',
+        name: 'Demo User',
+        email: 'demo@coredna.ai',
+        avatar: 'https://ui-avatars.com/api/?name=Demo+User&background=10B981&color=fff',
+        tier: 'agency'
+      };
+      setUser(mockUser);
+      localStorage.setItem('core_dna_user', JSON.stringify(mockUser));
     }
   }, []);
 

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { toastService } from '../services/toastService';
+import { validator, ValidationError } from '../services/validationService';
 
 interface ApiKeyPromptProps {
   onComplete: () => void;
@@ -8,10 +9,43 @@ interface ApiKeyPromptProps {
 export function ApiKeyPrompt({ onComplete }: ApiKeyPromptProps) {
   const [geminiKey, setGeminiKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+
+  // Validate API key format (basic check)
+  const validateApiKey = (key: string): ValidationError[] => {
+    const errors: ValidationError[] = [];
+    
+    if (!key || !key.trim()) {
+      errors.push({ field: 'geminiKey', message: 'API key is required' });
+    } else if (key.length < 20) {
+      errors.push({ field: 'geminiKey', message: 'API key appears too short' });
+    } else if (!key.startsWith('AIza')) {
+      errors.push({ field: 'geminiKey', message: 'Gemini API keys should start with "AIza"' });
+    }
+    
+    return errors;
+  };
+
+  // Real-time validation as user types
+  const handleKeyChange = (value: string) => {
+    setGeminiKey(value);
+    if (value.trim()) {
+      const errors = validateApiKey(value);
+      setValidationErrors(errors);
+    } else {
+      setValidationErrors([]);
+    }
+  };
 
   const saveAndContinue = () => {
-    if (!geminiKey.trim()) {
-      toastService.warning('Please enter a Gemini API key');
+    // Validate before saving
+    const errors = validateApiKey(geminiKey);
+    
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      errors.forEach(err => {
+        toastService.error(err.message);
+      });
       return;
     }
 
@@ -21,6 +55,8 @@ export function ApiKeyPrompt({ onComplete }: ApiKeyPromptProps) {
     const apiKeys = { gemini: geminiKey.trim() };
     localStorage.setItem('apiKeys', JSON.stringify(apiKeys));
 
+    // Log validation success
+    console.log('[ApiKeyPrompt] Validation successful, API key saved');
     toastService.success('API key saved! Ready to extract DNA');
 
     setTimeout(() => {
@@ -91,10 +127,27 @@ export function ApiKeyPrompt({ onComplete }: ApiKeyPromptProps) {
               type="password"
               placeholder="AIza..."
               value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+              onChange={(e) => handleKeyChange(e.target.value)}
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:outline-none text-lg transition-colors ${
+                validationErrors.length > 0
+                  ? 'border-red-500 bg-red-50 focus:ring-red-500'
+                  : 'border-gray-300 focus:ring-blue-500 focus:border-transparent'
+              }`}
               onKeyPress={(e) => e.key === 'Enter' && saveAndContinue()}
             />
+            {validationErrors.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {validationErrors.map((err, idx) => (
+                  <div key={idx} className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <span className="text-red-600 font-bold text-lg flex-shrink-0">⚠️</span>
+                    <div>
+                      <p className="text-sm font-medium text-red-800">{err.field}</p>
+                      <p className="text-sm text-red-700">{err.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">

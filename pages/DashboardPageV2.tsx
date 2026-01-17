@@ -9,6 +9,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { ComprehensivePortfolio } from '../types-portfolio';
 import { getPortfolios, getPortfolioStats, deletePortfolio } from '../services/portfolioService';
 import { getAllPortfolioData, migrateOldProfiles } from '../services/dataFlowService';
+import { hybridStorage } from '../services/hybridStorageService';
+import { toastService } from '../services/toastService';
 
 const DashboardPageV2: React.FC = () => {
   const { user, login } = useAuth();
@@ -17,9 +19,13 @@ const DashboardPageV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'recent'>('all');
   const [loaded, setLoaded] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(hybridStorage.getSyncStatus());
 
   useEffect(() => {
     if (user) {
+      // Initialize hybrid storage with user context
+      hybridStorage.setUserId(user.id);
+      
       // Migrate any legacy data on load
       const migrationCount = migrateOldProfiles();
       
@@ -27,27 +33,55 @@ const DashboardPageV2: React.FC = () => {
       const allPortfolios = getAllPortfolioData();
       setPortfolios(allPortfolios);
       setLoaded(true);
+      setSyncStatus(hybridStorage.getSyncStatus());
       
       if (migrationCount > 0) {
         console.log(`Dashboard: Migrated ${migrationCount} portfolios from legacy format`);
       }
+
+      // Monitor sync status changes
+      const syncInterval = setInterval(() => {
+        setSyncStatus(hybridStorage.getSyncStatus());
+      }, 1000);
+
+      return () => clearInterval(syncInterval);
     }
   }, [user]);
 
   const handleDeletePortfolio = useCallback((portfolioId: string) => {
     console.log('[Dashboard] Attempting to delete portfolio:', portfolioId);
-    const success = deletePortfolio(portfolioId);
-    console.log('[Dashboard] Delete result:', success);
     
-    if (success) {
+    // Get portfolio name for confirmation message
+    const portfolio = portfolios.find(p => p.id === portfolioId);
+    const portfolioName = portfolio?.companyName || 'Portfolio';
+    
+    // Use hybridStorage for deletion to ensure persistence across sync
+    hybridStorage.deletePortfolio(portfolioId).then(() => {
+      console.log('[Dashboard] Portfolio deleted via hybridStorage');
+      
       // Force re-fetch from storage to ensure state sync
       const updated = getPortfolios();
       console.log('[Dashboard] Updated portfolios count:', updated.length);
       setPortfolios(updated);
-    } else {
-      console.error('[Dashboard] Failed to delete portfolio');
-    }
-  }, []);
+      
+      // Ensure sync status is updated
+      setSyncStatus(hybridStorage.getSyncStatus());
+      
+      // Show success notification
+      toastService.success(`"${portfolioName}" deleted successfully`);
+    }).catch((error) => {
+      console.error('[Dashboard] Failed to delete portfolio:', error);
+      toastService.error('Failed to delete portfolio');
+      
+      // Fallback to local delete
+      const success = deletePortfolio(portfolioId);
+      if (success) {
+        const updated = getPortfolios();
+        setPortfolios(updated);
+        toastService.success(`"${portfolioName}" deleted (offline mode)`);
+      }
+    });
+  }, [portfolios]);
 
   const filteredPortfolios = useMemo(() => {
     const query = search.toLowerCase();
@@ -86,6 +120,38 @@ const DashboardPageV2: React.FC = () => {
     );
   }
 
+  // Sync status badge component
+  const SyncStatusBadge = () => (
+    <div className="flex items-center gap-2 text-xs font-medium">
+      {syncStatus.syncing ? (
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+          <span className="text-gray-600 dark:text-gray-400">Syncing...</span>
+        </div>
+      ) : syncStatus.isOnline ? (
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <span className="text-gray-600 dark:text-gray-400">Online</span>
+          {syncStatus.queuedOperations > 0 && (
+            <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded text-xs">
+              {syncStatus.queuedOperations} pending
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+          <span className="text-gray-600 dark:text-gray-400">Offline</span>
+          {syncStatus.queuedOperations > 0 && (
+            <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs">
+              {syncStatus.queuedOperations} queued
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
       {/* HEADER */}
@@ -98,12 +164,15 @@ const DashboardPageV2: React.FC = () => {
               </div>
               <h1 className="text-2xl font-black text-gray-900 dark:text-white">CoreDNA</h1>
             </div>
-            <button
-              onClick={() => navigate('/extract')}
-              className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition-all"
-            >
-              + New Portfolio
-            </button>
+            <div className="flex items-center gap-4">
+              <SyncStatusBadge />
+              <button
+                onClick={() => navigate('/extract')}
+                className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition-all"
+              >
+                + New Portfolio
+              </button>
+            </div>
           </div>
         </div>
       </div>
