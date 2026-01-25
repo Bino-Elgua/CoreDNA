@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { workflowProviderManager, WorkflowProviderConfig } from '../services/workflowProvider';
 import { getSettings, saveSettings } from '../services/settingsService';
+import { toastService } from '../services/toastService';
 import HealthCheckInput from '../components/HealthCheckInput';
 import { HealthCheckResult } from '../services/healthCheckService';
 // import { ALL_VIDEO_PROVIDERS } from '../src/constants/videoProviders'; // Removed - file doesn't exist
@@ -307,7 +308,7 @@ const SettingsPage: React.FC = () => {
             if (success) {
                 setHasChanges(false);
                 window.dispatchEvent(new Event('settingsUpdated'));
-                alert("Settings saved successfully. Neural pathways updated.");
+                toastService.success('Settings saved successfully');
                 console.log("Settings saved:", settings);
             } else {
                 throw new Error('Failed to save settings');
@@ -315,7 +316,7 @@ const SettingsPage: React.FC = () => {
         } catch (error: any) {
             const errorMsg = error?.message || String(error);
             console.error("Failed to save settings:", errorMsg, error);
-            alert(`Error saving settings: ${errorMsg}`);
+            toastService.error(`Failed to save settings: ${errorMsg}`);
         }
     };
 

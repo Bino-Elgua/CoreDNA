@@ -7,6 +7,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ComprehensivePortfolio } from '../types-portfolio';
 import { getPortfolio, getPortfolioActivityFeed, getPortfolioStats, deletePortfolio, exportPortfolio } from '../services/portfolioService';
+import { hybridStorage } from '../services/hybridStorageService';
+import { toastService } from '../services/toastService';
 
 const PortfolioPage: React.FC = () => {
   const { portfolioId } = useParams<{ portfolioId: string }>();
@@ -68,8 +70,12 @@ const PortfolioPage: React.FC = () => {
 
   const handleDelete = () => {
     if (confirm('Are you sure? This cannot be undone.')) {
-      deletePortfolio(portfolioId!);
-      navigate('/dashboard');
+      hybridStorage.deletePortfolio(portfolioId!).then(() => {
+        toastService.success('Portfolio deleted successfully');
+        navigate('/dashboard');
+      }).catch(() => {
+        toastService.error('Failed to delete portfolio');
+      });
     }
   };
 

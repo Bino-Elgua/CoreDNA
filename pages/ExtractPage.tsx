@@ -8,6 +8,7 @@ import { enhancedExtractionService } from '../services/enhancedExtractionService
 import rlmService from '../services/rlmService';
 import n8nService from '../services/n8nService';
 import { saveDNAAsPortfolio } from '../services/dataFlowService';
+import { toastService } from '../services/toastService';
 import { BrandDNA, LeadProfile, GlobalSettings } from '../types';
 import DNAProfileCard from '../components/DNAProfileCard';
 import DNAHelix from '../components/DNAHelix';
@@ -70,6 +71,7 @@ const ExtractPage: React.FC = () => {
             // Save to portfolio system (new primary storage)
             const portfolioId = saveDNAAsPortfolio(dna, url);
             console.log('[ExtractPage] ✓ Saved as portfolio:', portfolioId);
+            toastService.success('Brand DNA extracted and saved successfully');
             // Also keep in legacy format for backward compatibility
             const existing = localStorage.getItem('core_dna_profiles');
             const profiles = existing ? JSON.parse(existing) : [];
@@ -80,9 +82,9 @@ const ExtractPage: React.FC = () => {
             console.error("Extraction error:", e);
             
             if (errorMsg.includes('API key') || errorMsg.includes('apiKey')) {
-                alert("No API key configured. Please add an LLM API key in Settings first.");
+                toastService.error('No API key configured. Please add an LLM API key in Settings first.');
             } else if (errorMsg.includes('fetch') || errorMsg.includes('network')) {
-                alert("Network error or CORS issue. Trying fallback extraction...");
+                toastService.warning('Network error - trying fallback extraction...');
                 // Fallback to standard extraction if scraping fails
                 try {
                     setLoadingMsg('Using standard LLM analysis...');
@@ -91,13 +93,14 @@ const ExtractPage: React.FC = () => {
                     // Save to portfolio system
                     const portfolioId = saveDNAAsPortfolio(dnaFallback, url);
                     console.log('[ExtractPage Fallback] ✓ Saved as portfolio:', portfolioId);
+                    toastService.success('Extracted using fallback method');
                     // Keep in legacy format for backward compatibility
                     const existing = localStorage.getItem('core_dna_profiles');
                     const profiles = existing ? JSON.parse(existing) : [];
                     profiles.unshift(dnaFallback);
                     localStorage.setItem('core_dna_profiles', JSON.stringify(profiles));
                 } catch (fallbackError) {
-                    alert(`Extraction failed: ${fallbackError}`);
+                    toastService.error(`Extraction failed: ${fallbackError}`);
                 }
             } else {
                 alert(`Extraction failed: ${errorMsg}`);
