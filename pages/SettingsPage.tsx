@@ -143,8 +143,19 @@ const INITIAL_SETTINGS: GlobalSettings = {
         tray: { provider: 'tray', enabled: false, webhookUrl: '' },
         dify: { provider: 'dify', enabled: false, apiKey: '', webhookUrl: '' },
         custom_rag: { provider: 'custom_rag', enabled: false, webhookUrl: '' },
-    }
-};
+     },
+     email: {
+        provider: 'resend',
+        apiKey: '',
+        fromAddress: 'noreply@example.com'
+     },
+     social: {
+        instagram: { accessToken: '', accountId: '' },
+        facebook: { accessToken: '', pageId: '' },
+        twitter: { accessToken: '' },
+        linkedin: { accessToken: '', accountId: '' }
+     }
+     };
 
 const PROVIDER_META: Record<string, { title: string, icon: string, fields: string[], getKeyUrl?: string }> = {
     // LLMs
@@ -270,29 +281,31 @@ const SettingsPage: React.FC = () => {
      const [hasChanges, setHasChanges] = useState(false);
 
     // Load settings on mount
-    useEffect(() => {
-        const loadSettings = async () => {
-            try {
-                const stored = await getSettings();
-                if (stored) {
-                     setSettings(prev => ({
-                         ...prev,
-                         ...stored,
-                         llms: { ...prev.llms, ...stored.llms },
-                         image: { ...prev.image, ...stored.image },
-                         voice: { ...prev.voice, ...stored.voice },
-                         video: { ...prev.video, ...stored.video },
-                         workflows: { ...prev.workflows, ...stored.workflows },
-                         whiteLabel: { ...prev.whiteLabel, ...stored.whiteLabel },
-                         inference: { ...prev.inference, ...stored.inference }
-                     }));
-                 }
-            } catch (e) {
-                console.error("Failed to load settings", e);
-            }
-        };
-        loadSettings();
-    }, []);
+     useEffect(() => {
+         const loadSettings = async () => {
+             try {
+                 const stored = await getSettings();
+                 if (stored) {
+                      setSettings(prev => ({
+                          ...prev,
+                          ...stored,
+                          llms: { ...prev.llms, ...stored.llms },
+                          image: { ...prev.image, ...stored.image },
+                          voice: { ...prev.voice, ...stored.voice },
+                          video: { ...prev.video, ...stored.video },
+                          workflows: { ...prev.workflows, ...stored.workflows },
+                          whiteLabel: { ...prev.whiteLabel, ...stored.whiteLabel },
+                          inference: { ...prev.inference, ...stored.inference },
+                          email: { ...prev.email, ...stored.email },
+                          social: { ...prev.social, ...stored.social }
+                      }));
+                  }
+             } catch (e) {
+                 console.error("Failed to load settings", e);
+             }
+         };
+         loadSettings();
+     }, []);
 
     // Disabled: Auto-save was hiding the save button
     // Now user must explicitly click Save button
